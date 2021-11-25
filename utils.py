@@ -1,5 +1,5 @@
 import numpy as np
-import meshplot as mp
+import polyscope as ps
 from plyfile import PlyData
 
 def load_ply(path):
@@ -21,8 +21,18 @@ def plot_mesh(v, f, color=None):
     if type(color) is not np.ndarray:
             color = color.cpu().numpy()
 
-    mp.offline()
+    ps.init()
+
+    #Setting camera position.
+    v0 = np.mean(v[:,0])
+    v1 = np.mean(v[:,1])
+    ps.look_at((0,0,3*np.max(v)),(v0,v1,0))
+    ps.set_ground_plane_mode('none')
+    ps.set_transparency_mode('pretty')
+    ps.register_surface_mesh('mesh', v, f, smooth_shade=True, edge_width=1, transparency=0.9, edge_color=(0,0,0))
+
     if color is not None:
-        mp.plot(v, f, color)
-    else:
-        mp.plot(v, f)
+        ps.get_surface_mesh("mesh").add_scalar_quantity("color", color, defined_on='vertices', vminmax=(np.min(color),
+        np.max(color)), enabled=True, cmap='coolwarm')
+
+    ps.show()

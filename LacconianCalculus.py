@@ -10,15 +10,22 @@ DOF = 6     #degrees of freedom per vertex
 
 class LacconianCalculus:
     
-    def __init__(self, file=None, mesh=None, beam_properties=None, device='cpu'):
-        if mesh is None:
-            self.mesh = Mesh(file, device=device)
-        else:
-            self.mesh = mesh
+    def __init__(self, file=None, beam_properties=None, device='cpu'):
         self.device = device
         self.set_beam_properties(beam_properties)
+
+        if file is not None:
+            self.mesh = Mesh(file, device=device)
+            self.set_beam_model_data()
+            self.beam_model_solve()
+            self.displace_mesh()
+            self.plot_grid_shell()
+
+    def __call__(self, mesh):
+        self.mesh = mesh
         self.set_beam_model_data()
         self.beam_model_solve()
+        return float(torch.sum(torch.norm(self.displacements, p=2, dim=1)))
 
     #Store beam properties involved in the task.
     #Custom properties are passed through an iterable whose elements follow this order:
@@ -30,12 +37,12 @@ class LacconianCalculus:
     # -- moment of interia3 Ixx = Iyy, default is 4.189828*10^-8, round section (inertia3);
     # -- polar moment, default is 8.379656e-8 (polar);
     # -- shear section factor, default is 1.2 (shear);
-    # -- weight per surface unit, default is 1 kN/m^2 (weight_per_surface).
+    # -- weight per surface unit, default is 3 kN/m^2 (weight_per_surface).
     #
     def set_beam_properties(self, beam_properties):
         Properties = namedtuple('Properties', ['poisson', 'young', 'cross_area', 'inertia2', 'inertia3', 'polar', 'shear', 'weight_per_surface'])
         if beam_properties is None:
-            self.properties = Properties(0.3, 21e7, 1e-2, 4.189828e-8, 4.189828e-8, 8.379656e-8, 1.2, -1)
+            self.properties = Properties(0.3, 21e7, 1e-2, 4.189828e-8, 4.189828e-8, 8.379656e-8, 1.2, -3)
         elif isinstance(beam_properties, Iterable):
             self.properties = Properties._make(beam_properties)
         else:
@@ -73,8 +80,6 @@ class LacconianCalculus:
     def beam_model_solve(self):
         self.build_stiff_matrix()
         self.compute_stiff_displacement()
-        self.displace_mesh()
-        self.plot_grid_shell()
 
     #Stiffness matrices in beam reference systems are computed and then aggregated to compound a global stiff matrix.
     def build_stiff_matrix(self):
@@ -185,4 +190,4 @@ class LacconianCalculus:
         colors = torch.norm(self.displacements, p=2, dim=1)
         plot_mesh(self.mesh.vertices, self.mesh.faces, colors)
 
-LacconianCalculus(file='meshes/BritishQuadTang.ply')
+lc = LacconianCalculus(file='meshes/Neumunster.ply')
