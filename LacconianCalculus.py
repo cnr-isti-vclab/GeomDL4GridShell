@@ -25,7 +25,7 @@ class LacconianCalculus:
         self.mesh = mesh
         self.set_beam_model_data()
         self.beam_model_solve()
-        return float(torch.sum(torch.norm(self.displacements, p=2, dim=1)))
+        return torch.sum(torch.norm(self.displacements, p=2, dim=1))
 
     #Store beam properties involved in the task.
     #Custom properties are passed through an iterable whose elements follow this order:
@@ -187,7 +187,9 @@ class LacconianCalculus:
 
     #Show displaced mesh via meshplot.
     def plot_grid_shell(self):
-        colors = torch.norm(self.displacements, p=2, dim=1)
+        colors = torch.norm(self.displacements[:, :2], p=2, dim=1)
         plot_mesh(self.mesh.vertices, self.mesh.faces, colors)
 
-lc = LacconianCalculus(file='meshes/Neumunster.ply')
+#lc = LacconianCalculus(file='meshes/BritishQuadTang.ply')
+
+

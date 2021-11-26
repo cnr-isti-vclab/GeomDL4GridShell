@@ -5,15 +5,17 @@ from plyfile import PlyData
 def load_ply(path):
     plyData = PlyData.read(path)
     x, y, z = (np.array([plyData['vertex']['x']]).T, np.array([plyData['vertex']['y']]).T, np.array([plyData['vertex']['z']]).T)
+    r, g, b = (np.array([plyData['vertex']['red']]).T, np.array([plyData['vertex']['green']]).T, np.array([plyData['vertex']['blue']]).T)
 
     #Extracting and saving features.
     vertices = np.concatenate((x,y,z),axis=1)
+    colors = np.concatenate((r,g,b),axis=1)
     faces = np.array([face for face in plyData['face']['vertex_indices']])
-    vertex_is_constrained = np.where(plyData['vertex']['flags'] == 32, True, False)
-
+    vertex_is_constrained = np.where((colors[:,0] == 255) & (colors[:,1] == 0) & (colors[:,2] == 0), True, False)
+   
     return vertices, faces, vertex_is_constrained
 
-def plot_mesh(v, f, color=None):
+def plot_mesh(v, f, color=None, cmap='viridis'):
     if type(v) is not np.ndarray:
             v = v.cpu().numpy()
     if type(f) is not np.ndarray:
@@ -29,10 +31,10 @@ def plot_mesh(v, f, color=None):
     ps.look_at((0,0,3*np.max(v)),(v0,v1,0))
     ps.set_ground_plane_mode('none')
     ps.set_transparency_mode('pretty')
-    ps.register_surface_mesh('mesh', v, f, smooth_shade=True, edge_width=1, transparency=0.9, edge_color=(0,0,0))
+    ps.register_surface_mesh('mesh', v, f, smooth_shade=True, edge_width=1, edge_color=(0,0,0))
 
     if color is not None:
-        ps.get_surface_mesh("mesh").add_scalar_quantity("color", color, defined_on='vertices', vminmax=(np.min(color),
-        np.max(color)), enabled=True, cmap='coolwarm')
+        ps.get_surface_mesh("mesh").add_scalar_quantity("color", color, defined_on='vertices', vminmax=(0,
+        np.max(color)), enabled=True, cmap='viridis')
 
     ps.show()
