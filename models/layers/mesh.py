@@ -21,7 +21,7 @@ from torch.nn.functional import normalize
 
 class Mesh:
 
-    def __init__(self, file, hold_history=False, vertices=None, faces=None, device='cpu', gfmm=True):
+    def __init__(self, file, hold_history=False, vertices=None, faces=None, device='cpu', gfmm=True, vertices_have_grad=False):
         if file is None:
             return
         #self.filename = Path(file)
@@ -51,6 +51,8 @@ class Mesh:
         if type(self.vertex_is_constrainted) is np.ndarray:
             self.vertex_is_constrainted = torch.from_numpy(self.vertex_is_constrainted)
         self.vertices = self.vertices.to(self.device)
+        #Activating gradient in vertices tensor if requested.
+        self.vertices.requires_grad_(vertices_have_grad)
         self.faces = self.faces.to(self.device).long()
         self.edges = self.edge_matrix(self.vertices, self.faces)
         #self.face_areas, self.face_normals = self.face_areas_normals(self.vertices, self.faces)
@@ -122,7 +124,7 @@ class Mesh:
     @staticmethod
     def edge_matrix(vs, faces):
         if type(vs) is not np.ndarray:
-            vs = vs.cpu().numpy()
+            vs = vs.detach().cpu().numpy()
         if type(faces) is not np.ndarray:
             faces = faces.cpu().numpy()
 
