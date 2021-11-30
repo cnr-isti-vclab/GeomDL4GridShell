@@ -11,7 +11,7 @@ DOF = 6     #degrees of freedom per vertex
 class LacconianCalculus:
     
     def __init__(self, file=None, beam_properties=None, device='cpu'):
-        self.device = device
+        self.device = torch.device(device)
         self.set_beam_properties(beam_properties)
 
         if file is not None:
@@ -25,7 +25,7 @@ class LacconianCalculus:
         self.mesh = mesh
         self.set_beam_model_data()
         self.beam_model_solve()
-        return torch.sum(torch.norm(self.displacements, p=2, dim=1))
+        return torch.sum(torch.norm(self.vertex_deformations, p=2, dim=1))
 
     #Store beam properties involved in the task.
     #Custom properties are passed through an iterable whose elements follow this order:
@@ -57,7 +57,7 @@ class LacconianCalculus:
         beam_normals = self.mesh.compute_edge_normals()
         
         #Saving load matrix: all entries are zero except Fz who is set -1/3 * weight_per_surface * <sum of all incident face areas>
-        self.load = torch.zeros(len(self.mesh.vertices), DOF).to(self.device)
+        self.load = torch.zeros(len(self.mesh.vertices), DOF, device=self.device)
         for vertex_id in range(len(self.mesh.vertices)):
             ix_mask = self.mesh.incidence_mask[vertex_id, :]
             self.load[vertex_id, 2] = 1/3 * self.properties.weight_per_surface * torch.sum(self.mesh.face_areas[ix_mask], dim=0)
@@ -66,31 +66,30 @@ class LacconianCalculus:
         self.beam_lengths = beam_lengths
 
         #Saving beam local frames, i.e. bases of beam-fixed reference systems stored in a 3-dimensional tensor.
-        self.beam_frames = torch.zeros(len(self.mesh.edges),3,3).to(self.device)
+        self.beam_frames = torch.zeros(len(self.mesh.edges), 3, 3, device=self.device)
 
         self.beam_frames[:, 0, :] = beam_directions
         self.beam_frames[:, 1, :] = beam_normals
         self.beam_frames[:, 2, :] = normalize(torch.cross(beam_directions, beam_normals, dim=1), dim=1)
                                     # renormalization is to prevent numerical orthogonality loss
 
-        #Displacement tensor initialization.
-        self.displacements = None
+        #Deformation tensor initialization.
+        self.vertex_deformations = None
 
     #Execute all stiffness and resistence computations.
     def beam_model_solve(self):
         self.build_stiff_matrix()
-        self.compute_stiff_displacement()
+        self.compute_stiff_deformation()
 
     #Stiffness matrices in beam reference systems are computed and then aggregated to compound a global stiff matrix.
     def build_stiff_matrix(self):
         #Global stiff matrix container: 2-dimensional torch.tensor.
-        self.stiff_matrix = torch.zeros(DOF*len(self.mesh.vertices), DOF*len(self.mesh.vertices)).to(self.device)
-
+        self.stiff_matrix = torch.zeros(DOF*len(self.mesh.vertices), DOF*len(self.mesh.vertices), device=self.device)
         #Beam stiff matrices container: 3-dimensional torch.tensor.
-        self.beam_stiff_matrices = torch.zeros(2*DOF, 2*DOF, len(self.mesh.edges)).to(self.device)
+        self.beam_stiff_matrices = torch.zeros(2*DOF, 2*DOF, len(self.mesh.edges), device=self.device)
 
         #Transition matrices from beam to general reference system container: 3-dimensional torch.tensor.
-        self.transition_matrices = torch.zeros(2*DOF, 2*DOF, len(self.mesh.edges)).to(self.device)
+        self.transition_matrices = torch.zeros(2*DOF, 2*DOF, len(self.mesh.edges), device=self.device)
 
         for edge_id, edge in enumerate(self.mesh.edges):
             #Assembling local reference matrices.
@@ -114,11 +113,11 @@ class LacconianCalculus:
                     [0,      0,	    0,    -k6,	    0,       0,	     0,	    0,       0,	   k6,	     0,      0],
                     [0,      0,	  -k5,      0,	 2*k7,	     0,	     0,	    0,      k5,	    0,    4*k7,	     0],
                     [0,     k4,	    0,      0,	    0,    2*k8,	     0,	  -k4,       0,     0,  	 0,	  4*k8]]
-            k_e = torch.tensor(k_e).to(self.device)
+            k_e = torch.tensor(k_e, device=self.device)
             self.beam_stiff_matrices[:, :, edge_id] = k_e
 
             #Assembling local to global reference transition matrices (via Kronecker product).
-            edge_trans_matrix = torch.kron(torch.eye(4,4), self.beam_frames[edge_id, :, :])
+            edge_trans_matrix = torch.kron(torch.eye(4, 4, device=self.device), self.beam_frames[edge_id, :, :])
             self.transition_matrices[:, :, edge_id] = edge_trans_matrix
 
             #Adding edge contribution to global stiff matrix.
@@ -126,8 +125,8 @@ class LacconianCalculus:
             ix_grid = np.ix_(edge_dofs, edge_dofs)
             self.stiff_matrix[ix_grid] += edge_trans_matrix.T @ k_e @ edge_trans_matrix
 
-    #Compute vertex displacements by solving a stiff-matrix-based linear system.
-    def compute_stiff_displacement(self):
+    #Compute vertex deformations by solving a stiff-matrix-based linear system.
+    def compute_stiff_deformation(self):
         #Vectorializing load matrix
         loads = torch.reshape(self.load, shape=(DOF * len(self.mesh.vertices), ))
 
@@ -137,15 +136,15 @@ class LacconianCalculus:
         ix_grid = np.ix_(ix_mask, ix_mask)
 
         #Solving reduced linear system and adding zeros in constrained dofs.
-        self.displacements = torch.zeros(len(self.mesh.vertices) * DOF).to(self.device)
+        self.vertex_deformations = torch.zeros(len(self.mesh.vertices) * DOF, device=self.device)
         sys_sol = torch.linalg.solve(self.stiff_matrix[ix_grid], loads[ix_mask])
-        self.displacements[ix_mask] = sys_sol
+        self.vertex_deformations[ix_mask] = sys_sol
 
         #Computing beam resulting forces and energies.
         self.compute_beam_force_and_energy()
 
-        #Making displacement tensor by reshaping self.displacements.
-        self.displacements = torch.reshape(self.displacements, shape=(len(self.mesh.vertices), DOF))
+        #Making deformation tensor by reshaping self.vertex_deformations.
+        self.vertex_deformations = torch.reshape(self.vertex_deformations, shape=(len(self.mesh.vertices), DOF))
 
     #Computing beam resulting forces and energies.
     def compute_beam_force_and_energy(self):
@@ -153,14 +152,14 @@ class LacconianCalculus:
         #output rows: [Axial_startNode; Shear2_startNode; Shear3_startNode; Torque_startNode; Bending3_startNode; Bending2_startNode;
         #                ...Axial_endNode; Shear2_endNode; Shear3_endNode; Torque_endNode; Bending3_endNode; Bending2_endNode]
         #mean values of the force is reported for each edge
-        self.signed_node_forces = torch.zeros(len(self.mesh.edges), 2 * DOF).to(self.device)
-        self.mean_forces = torch.zeros(len(self.mesh.edges), DOF).to(self.device)
-        self.beam_energy = torch.zeros(len(self.mesh.edges)).to(self.device)
+        self.signed_node_forces = torch.zeros(len(self.mesh.edges), 2 * DOF, device=self.device)
+        self.mean_forces = torch.zeros(len(self.mesh.edges), DOF, device=self.device)
+        self.beam_energy = torch.zeros(len(self.mesh.edges), device=self.device)
 
         for edge_id, edge in enumerate(self.mesh.edges):
             #Selecting edge endpoint displacements.
             edge_dofs = torch.cat((6 * edge[0] + torch.arange(6), 6 * edge[1] + torch.arange(6)), dim=0)
-            disp = self.displacements[edge_dofs]
+            disp = self.vertex_deformations[edge_dofs]
 
             #Computing and averaging resulting forces per beam.
             node_forces = self.beam_stiff_matrices[:, :, edge_id] @ self.transition_matrices[:, :, edge_id] @ disp
@@ -179,17 +178,17 @@ class LacconianCalculus:
     #Displace initial mesh with self.beam_model_solve() computed translations.
     def displace_mesh(self):
         #REQUIRES: self.beam_model_solve() has to be called before executing this.
-        if self.displacements is None:
+        if self.vertex_deformations is None:
             raise RuntimeError("self.beam_model_solve() method not called yet.")
 
         #Updating mesh vertices.
-        self.mesh.update_verts(self.mesh.vertices + self.displacements[:, :int(DOF/2)])
+        self.mesh.update_verts(self.mesh.vertices + self.vertex_deformations[:, :int(DOF/2)])
 
     #Show displaced mesh via meshplot.
     def plot_grid_shell(self):
-        colors = torch.norm(self.displacements[:, :2], p=2, dim=1)
+        colors = torch.norm(self.vertex_deformations[:, :2], p=2, dim=1)
         plot_mesh(self.mesh.vertices, self.mesh.faces, colors)
 
-#lc = LacconianCalculus(file='meshes/BritishQuadTang.ply')
+#lc = LacconianCalculus(file='meshes/nonfuniculartraslationalsrf2.ply')
 
 
