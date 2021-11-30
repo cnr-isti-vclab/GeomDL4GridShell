@@ -27,7 +27,7 @@ class Mesh:
         #self.filename = Path(file)
         self.vertices = self.v_mask = self.edge_areas = None
         self.edges = self.gemm_edges = self.sides = None
-        self.device = device
+        self.device = torch.device(device)
         if vertices is not None and faces is not None:
             self.vertices, self.faces = vertices.cpu().numpy(), faces.cpu().numpy()
             #self.scale, self.translations = 1.0, np.zeros(3,)
@@ -50,10 +50,8 @@ class Mesh:
             self.faces = torch.from_numpy(self.faces)
         if type(self.vertex_is_constrainted) is np.ndarray:
             self.vertex_is_constrainted = torch.from_numpy(self.vertex_is_constrainted)
-        self.vertices = self.vertices.to(self.device)
-        #Activating gradient in vertices tensor if requested.
-        self.vertices.requires_grad_(vertices_have_grad)
-        self.faces = self.faces.to(self.device).long()
+        self.vertices = self.vertices.to(device)
+        self.faces = self.faces.long()
         self.edges = self.edge_matrix(self.vertices, self.faces)
         #self.face_areas, self.face_normals = self.face_areas_normals(self.vertices, self.faces)
 
@@ -79,21 +77,18 @@ class Mesh:
         self.incidence_mask = self.make_per_vertex_face_incidence_mask()
 
         #Computing vertex normals from incident faces.
-        vertex_normals = torch.zeros(len(self.vertices),3).to(self.device)
+        vertex_normals = torch.zeros(len(self.vertices), 3, device=self.device)
         for vertex_id in range(len(self.vertices)):
             #Selecting incident faces in the current vertex.
             ix_mask = self.incidence_mask[vertex_id, :]
-            ix_grid = np.ix_(ix_mask, [True]*3)
-            incident_faces_normals = self.faces[ix_grid]
+            incident_faces_normals = self.faces[ix_mask, :]
 
             #Vertex normal is deduced just by summing.
             vertex_normals[vertex_id, :] = torch.sum(incident_faces_normals, dim=0)
         vertex_normals = normalize(vertex_normals, p=2, dim=1)
 
         #Computing edge normals by endpoint means.
-        ix_grid_1 = np.ix_(self.edges[:, 0], [True]*3)
-        ix_grid_2 = np.ix_(self.edges[:, 1], [True]*3)
-        edge_normals = 0.5 * vertex_normals[ix_grid_1] + 0.5 * vertex_normals[ix_grid_2]
+        edge_normals = 0.5 * vertex_normals[self.edges[:, 0], :] + 0.5 * vertex_normals[self.edges[:, 1], :]
         edge_normals = normalize(edge_normals, p=2, dim=1)
 
         return edge_normals
