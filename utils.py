@@ -15,13 +15,14 @@ def load_ply(path):
    
     return vertices, faces, vertex_is_constrained
 
-def plot_mesh(v, f, color=None, cmap='viridis'):
+def plot_mesh(v, f, colors=None, cmap='viridis'):
     if type(v) is not np.ndarray:
             v = v.cpu().numpy()
     if type(f) is not np.ndarray:
             f = f.cpu().numpy()
-    if type(color) is not np.ndarray:
-            color = color.cpu().numpy()
+    if type(colors) is not np.ndarray:
+            if colors is not None:
+                colors = colors.cpu().numpy()
 
     ps.init()
 
@@ -33,8 +34,8 @@ def plot_mesh(v, f, color=None, cmap='viridis'):
     ps.set_transparency_mode('pretty')
     ps.register_surface_mesh('mesh', v, f, smooth_shade=True, edge_width=1, edge_color=(0,0,0))
 
-    if color is not None:
-        ps.get_surface_mesh("mesh").add_scalar_quantity("color", color, defined_on='vertices', vminmax=(0,
-        np.max(color)), enabled=True, cmap='viridis')
+    if colors is not None:
+        ps.get_surface_mesh("mesh").add_scalar_quantity("color", colors, defined_on='vertices', vminmax=(0,
+        np.max(colors)), enabled=True, cmap=cmap)
 
     ps.show()

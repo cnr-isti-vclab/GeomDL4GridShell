@@ -1,7 +1,7 @@
 import torch
-from torch.optim import optimizer
 from LacconianCalculus import LacconianCalculus
 from models.layers.mesh import Mesh
+from utils import plot_mesh
 
 class LacconianOptimizer:
 
@@ -25,6 +25,10 @@ class LacconianOptimizer:
             #Summing displacements to mesh vertices.
             self.mesh.vertices[self.non_constraint_mask, :] += self.displacements
 
+            # Plotting mesh with deformations.
+            if iteration % 100 == 0:
+                self.plot_grid_shell()
+
             loss = self.lacconian_calculus(self.mesh)
             print('Iteration: ', iteration, ' Loss: ', loss)
 
@@ -35,5 +39,14 @@ class LacconianOptimizer:
             #Deleting grad history in mesh.vertices
             self.mesh.vertices.detach_()
 
-lo = LacconianOptimizer('meshes/go.ply', lr=1e-4, device='cuda')
-lo.start()
+    def plot_grid_shell(self):
+        if self.lacconian_calculus.vertex_deformations is None:
+            self.mesh.plot_mesh()
+        else:
+            colors = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
+            self.mesh.plot_mesh(colors=colors)
+
+
+
+lo = LacconianOptimizer('meshes/simple_grid.ply', lr=1e-4, momentum=0.9, device='cuda')
+lo.start(n_iter=500)

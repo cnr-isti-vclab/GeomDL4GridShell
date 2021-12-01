@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import time
 from torch.nn.functional import normalize
 from models.layers.mesh import Mesh
 from collections import namedtuple
@@ -13,6 +14,9 @@ class LacconianCalculus:
     def __init__(self, file=None, beam_properties=None, device='cpu'):
         self.device = torch.device(device)
         self.set_beam_properties(beam_properties)
+
+        # Deformation tensor initialization.
+        self.vertex_deformations = None
 
         if file is not None:
             self.mesh = Mesh(file, device=device)
@@ -72,9 +76,6 @@ class LacconianCalculus:
         self.beam_frames[:, 1, :] = beam_normals
         self.beam_frames[:, 2, :] = normalize(torch.cross(beam_directions, beam_normals, dim=1), dim=1)
                                     # renormalization is to prevent numerical orthogonality loss
-
-        #Deformation tensor initialization.
-        self.vertex_deformations = None
 
     #Execute all stiffness and resistence computations.
     def beam_model_solve(self):
@@ -186,9 +187,10 @@ class LacconianCalculus:
 
     #Show displaced mesh via meshplot.
     def plot_grid_shell(self):
-        colors = torch.norm(self.vertex_deformations[:, :2], p=2, dim=1)
-        plot_mesh(self.mesh.vertices, self.mesh.faces, colors)
+        colors = torch.norm(self.vertex_deformations[:, :3], p=2, dim=1)
+        self.mesh.plot_mesh(self.mesh.vertices, self.mesh.faces, colors)
 
-#lc = LacconianCalculus(file='meshes/Shell.ply', device='cuda')
+#lc = LacconianCalculus(file='meshes/go.ply', device='cuda')
+#print(float(lc.end - lc.start))
 
 
