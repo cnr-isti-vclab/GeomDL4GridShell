@@ -15,7 +15,7 @@ class LacconianOptimizer:
 
         #Building optimizer.
         self.displacements = torch.zeros(int(torch.sum(self.non_constraint_mask)), 3, requires_grad=True, device=self.device)
-        self.optimizer = torch.optim.SGD([ self.displacements ], lr=.01, momentum=0.9)
+        self.optimizer = torch.optim.SGD([ self.displacements ], lr=lr, momentum=momentum)
 
     def start(self, n_iter=1000):
         for iteration in range(n_iter):
@@ -35,5 +35,5 @@ class LacconianOptimizer:
             #Deleting grad history in mesh.vertices
             self.mesh.vertices.detach_()
 
-lo = LacconianOptimizer('meshes/go.ply', device='cuda')
+lo = LacconianOptimizer('meshes/go.ply', lr=1e-4, device='cuda')
 lo.start()

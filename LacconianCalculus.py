@@ -25,7 +25,7 @@ class LacconianCalculus:
         self.mesh = mesh
         self.set_beam_model_data()
         self.beam_model_solve()
-        return torch.sum(torch.norm(self.vertex_deformations, p=2, dim=1))
+        return torch.sum(torch.norm(self.vertex_deformations[:, :3], p=2, dim=1))
 
     #Store beam properties involved in the task.
     #Custom properties are passed through an iterable whose elements follow this order:
@@ -189,6 +189,6 @@ class LacconianCalculus:
         colors = torch.norm(self.vertex_deformations[:, :2], p=2, dim=1)
         plot_mesh(self.mesh.vertices, self.mesh.faces, colors)
 
-#lc = LacconianCalculus(file='meshes/nonfuniculartraslationalsrf2.ply')
+#lc = LacconianCalculus(file='meshes/Shell.ply', device='cuda')
 
 
