@@ -11,7 +11,7 @@ import igl      #NEW!
 import torch
 import numpy as np
 #from queue import Queue
-from utils import load_ply
+from utils import load_ply, plot_mesh
 from torch.nn.functional import normalize
 #import copy
 #from pathlib import Path
@@ -133,6 +133,15 @@ class Mesh:
         :param verts: new verts
         """
         self.vertices = verts
+
+    def plot_mesh(self, colors=None):
+        vertices = self.vertices.detach()
+        faces = self.faces.detach()
+        if colors is not None:
+            colors = colors.detach()
+        plot_mesh(vertices, faces, colors)
+
+
 
 
 
