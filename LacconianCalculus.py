@@ -45,7 +45,7 @@ class LacconianCalculus:
     def set_beam_properties(self, beam_properties):
         Properties = namedtuple('Properties', ['poisson', 'young', 'cross_area', 'inertia2', 'inertia3', 'polar', 'shear', 'weight_per_surface'])
         if beam_properties is None:
-            self.properties = Properties(0.3, 21e7, 1e-2, 4.189828e-8, 4.189828e-8, 8.379656e-8, 1.2, -300)
+            self.properties = Properties(0.3, 21e7, 1e-2, 4.189828e-8, 4.189828e-8, 8.379656e-8, 1.2, -3)
         elif isinstance(beam_properties, Iterable):
             self.properties = Properties._make(beam_properties)
         else:
