@@ -48,5 +48,5 @@ class LacconianOptimizer:
 
 
 
-lo = LacconianOptimizer('meshes/simple_grid.ply', lr=1e-4, momentum=0.9, device='cuda')
+lo = LacconianOptimizer('meshes/simple_grid.ply', lr=1e-4, momentum=0.9, device='cpu')
 lo.start(n_iter=500)

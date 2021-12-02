@@ -1,11 +1,10 @@
 import numpy as np
 import torch
-import time
 from torch.nn.functional import normalize
 from models.layers.mesh import Mesh
 from collections import namedtuple
 from collections.abc import Iterable
-from utils import plot_mesh
+from utils import save_mesh
 
 DOF = 6     #degrees of freedom per vertex
 
@@ -46,7 +45,7 @@ class LacconianCalculus:
     def set_beam_properties(self, beam_properties):
         Properties = namedtuple('Properties', ['poisson', 'young', 'cross_area', 'inertia2', 'inertia3', 'polar', 'shear', 'weight_per_surface'])
         if beam_properties is None:
-            self.properties = Properties(0.3, 21e7, 1e-2, 4.189828e-8, 4.189828e-8, 8.379656e-8, 1.2, -3)
+            self.properties = Properties(0.3, 21e7, 1e-2, 4.189828e-8, 4.189828e-8, 8.379656e-8, 1.2, -300)
         elif isinstance(beam_properties, Iterable):
             self.properties = Properties._make(beam_properties)
         else:
@@ -188,9 +187,7 @@ class LacconianCalculus:
     #Show displaced mesh via meshplot.
     def plot_grid_shell(self):
         colors = torch.norm(self.vertex_deformations[:, :3], p=2, dim=1)
-        self.mesh.plot_mesh(self.mesh.vertices, self.mesh.faces, colors)
+        self.mesh.plot_mesh(colors)
 
-#lc = LacconianCalculus(file='meshes/go.ply', device='cuda')
-#print(float(lc.end - lc.start))
-
-
+lc = LacconianCalculus(file='meshes/simple_grid.ply', device='cpu')
+save_mesh(lc.mesh, 'pincopallino.ply')
