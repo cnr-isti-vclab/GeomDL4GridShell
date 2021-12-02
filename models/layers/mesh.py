@@ -1,17 +1,16 @@
 ##################################################################################################
 #CHANGES:
 # -- new parameters Mesh.vertex_is_constrained, Mesh.edges.
-# -- utils.load_obj is replaced by utils.load_ply;
+# -- utils.load_obj is replaced by utils.load_mesh;
 # -- optional parameter normalize added in face_areas_normals method;
 # -- Mesh.vs renamed to Mesh.vertices;
 # -- Mesh.normals renamed to Mesh.face_normals;
 # -- Mesh.area renamed to Mesh.face_areas.
 
-import igl      #NEW!
 import torch
 import numpy as np
 #from queue import Queue
-from utils import load_ply, plot_mesh
+from utils import load_mesh, plot_mesh, get_edge_matrix
 from torch.nn.functional import normalize
 #import copy
 #from pathlib import Path
@@ -32,7 +31,7 @@ class Mesh:
             self.vertices, self.faces = vertices.cpu().numpy(), faces.cpu().numpy()
             #self.scale, self.translations = 1.0, np.zeros(3,)
         else:
-            self.vertices, self.faces, self.vertex_is_constrainted = load_ply(file)
+            self.vertices, self.faces, self.vertex_is_constrainted = load_mesh(file)
             #self.normalize_unit_bb()
         #self.vs_in = copy.deepcopy(self.vertices)
         #self.v_mask = np.ones(len(self.vertices), dtype=bool)
@@ -44,6 +43,7 @@ class Mesh:
         #    self.gfmm = self.build_gfmm() #TODO get rid of this DS
         #else:
         #    self.gfmm = None
+        self.edges = get_edge_matrix(self.faces)
         if type(self.vertices) is np.ndarray:
             self.vertices = torch.from_numpy(self.vertices)
         if type(self.faces) is np.ndarray:
@@ -52,7 +52,6 @@ class Mesh:
             self.vertex_is_constrainted = torch.from_numpy(self.vertex_is_constrainted)
         self.vertices = self.vertices.to(device)
         self.faces = self.faces.long()
-        self.edges = self.edge_matrix(self.vertices, self.faces)
         #self.face_areas, self.face_normals = self.face_areas_normals(self.vertices, self.faces)
 
     def compute_edge_lengths_and_directions(self):
@@ -115,17 +114,6 @@ class Mesh:
         face_areas = 0.5 * face_areas
 
         return face_areas, face_normals
-
-    @staticmethod
-    def edge_matrix(vs, faces):
-        if type(vs) is not np.ndarray:
-            vs = vs.detach().cpu().numpy()
-        if type(faces) is not np.ndarray:
-            faces = faces.cpu().numpy()
-
-        edges = igl.edges(faces)
-
-        return edges
 
     def update_verts(self, verts):
         """
