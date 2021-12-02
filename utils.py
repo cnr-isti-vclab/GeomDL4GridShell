@@ -1,7 +1,6 @@
 import numpy as np
 import polyscope as ps
 import pymeshlab
-from plyfile import PlyData
 
 def load_mesh(path):
     #Creating pymeshlab MeshSet, loading mesh from file and selecting it.

@@ -189,4 +189,4 @@ class LacconianCalculus:
         colors = torch.norm(self.vertex_deformations[:, :3], p=2, dim=1)
         self.mesh.plot_mesh(colors)
 
-# lc = LacconianCalculus(file='meshes/simple_grid.ply', device='cpu')
+#lc = LacconianCalculus(file='meshes/simple_grid.ply', device='cpu')
