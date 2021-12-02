@@ -57,8 +57,7 @@ def plot_mesh(v, f, colors=None, cmap='viridis'):
     ps.register_surface_mesh('mesh', v, f, smooth_shade=True, edge_width=1, edge_color=(0,0,0))
 
     if colors is not None:
-        ps.get_surface_mesh("mesh").add_scalar_quantity("color", colors, defined_on='vertices', vminmax=(0,
-        np.max(colors)), enabled=True, cmap=cmap)
+        ps.get_surface_mesh("mesh").add_scalar_quantity("color", colors, defined_on='vertices', enabled=True, cmap=cmap)
 
     ps.show()
 

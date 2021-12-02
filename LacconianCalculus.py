@@ -190,4 +190,3 @@ class LacconianCalculus:
         self.mesh.plot_mesh(colors)
 
 lc = LacconianCalculus(file='meshes/simple_grid.ply', device='cpu')
-save_mesh(lc.mesh, 'pincopallino.ply')

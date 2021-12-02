@@ -1,11 +1,12 @@
 import torch
 from LacconianCalculus import LacconianCalculus
 from models.layers.mesh import Mesh
-from utils import plot_mesh
+from options.optimizer_options import OptimizerOptions
+from utils import save_mesh
 
 class LacconianOptimizer:
 
-    def __init__(self, file, lr=0.1, momentum=0.9, device='cpu'):
+    def __init__(self, file, lr, momentum, device):
         self.mesh = Mesh(file=file, vertices_have_grad=True, device=device)
         self.lacconian_calculus = LacconianCalculus(device=device)
         self.device = torch.device(device)
@@ -17,7 +18,7 @@ class LacconianOptimizer:
         self.displacements = torch.zeros(int(torch.sum(self.non_constraint_mask)), 3, requires_grad=True, device=self.device)
         self.optimizer = torch.optim.SGD([ self.displacements ], lr=lr, momentum=momentum)
 
-    def start(self, n_iter=1000):
+    def start(self, n_iter, plot, save, interval):
         for iteration in range(n_iter):
             #Putting grads to None.
             self.optimizer.zero_grad(set_to_none=True)
@@ -25,9 +26,13 @@ class LacconianOptimizer:
             #Summing displacements to mesh vertices.
             self.mesh.vertices[self.non_constraint_mask, :] += self.displacements
 
-            # Plotting mesh with deformations.
-            if iteration % 100 == 0:
-                self.plot_grid_shell()
+            # Plotting/saving.
+            if iteration % interval == 0:
+                if plot:
+                    self.plot_grid_shell()
+                if save:
+                    filename = 'deformation_' + iteration + '.ply'
+                    save_mesh(self.mesh, filename)
 
             loss = self.lacconian_calculus(self.mesh)
             print('Iteration: ', iteration, ' Loss: ', loss)
@@ -47,6 +52,7 @@ class LacconianOptimizer:
             self.mesh.plot_mesh(colors=colors)
 
 
-
-lo = LacconianOptimizer('meshes/simple_grid.ply', lr=1e-4, momentum=0.9, device='cpu')
-lo.start(n_iter=500)
+parser = OptimizerOptions()
+options = parser.parse()
+lo = LacconianOptimizer(options.meshpath, options.lr, options.momentum, options.device)
+lo.start(options.n_iter, options.plot, options.save, options.interval)
