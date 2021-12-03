@@ -18,7 +18,7 @@ class LacconianOptimizer:
         self.displacements = torch.zeros(int(torch.sum(self.non_constraint_mask)), 3, requires_grad=True, device=self.device)
         self.optimizer = torch.optim.SGD([ self.displacements ], lr=lr, momentum=momentum)
 
-    def start(self, n_iter, plot, save, interval):
+    def start(self, n_iter, plot, save, interval, savelabel):
         for iteration in range(n_iter):
             #Putting grads to None.
             self.optimizer.zero_grad(set_to_none=True)
@@ -31,7 +31,7 @@ class LacconianOptimizer:
                 if plot:
                     self.plot_grid_shell()
                 if save:
-                    filename = 'deformation_' + str(iteration) + '.ply'
+                    filename = savelabel + '_' + str(iteration) + '.ply'
                     save_mesh(self.mesh, filename)
 
             loss = self.lacconian_calculus(self.mesh)
@@ -55,4 +55,4 @@ class LacconianOptimizer:
 parser = OptimizerOptions()
 options = parser.parse()
 lo = LacconianOptimizer(options.path, options.lr, options.momentum, options.device)
-lo.start(options.n_iter, options.plot, options.save, options.interval)
+lo.start(options.n_iter, options.plot, options.save, options.interval, options.savelabel)
