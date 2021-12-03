@@ -12,6 +12,7 @@ class OptimizerOptions:
         self.parser.add_argument('--plot', dest='plot', action='store_true', default=False, help='True if polyscope plotting is required')
         self.parser.add_argument('--save', dest='save', action='store_true', default=False, help='True if mesh saving is required')
         self.parser.add_argument('--interval', dest='interval', type=int, default=25, help='Plotting/saving iterations interval')
+        self.parser.add_argument('--savelabel', dest='savelabel', type=str, default='deformation', help='Label for ouputs')
 
     def parse(self):
         return self.parser.parse_args()
