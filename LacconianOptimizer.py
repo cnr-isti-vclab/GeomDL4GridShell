@@ -31,7 +31,7 @@ class LacconianOptimizer:
                 if plot:
                     self.plot_grid_shell()
                 if save:
-                    filename = 'deformation_' + iteration + '.ply'
+                    filename = 'deformation_' + str(iteration) + '.ply'
                     save_mesh(self.mesh, filename)
 
             loss = self.lacconian_calculus(self.mesh)
@@ -54,5 +54,5 @@ class LacconianOptimizer:
 
 parser = OptimizerOptions()
 options = parser.parse()
-lo = LacconianOptimizer(options.meshpath, options.lr, options.momentum, options.device)
+lo = LacconianOptimizer(options.path, options.lr, options.momentum, options.device)
 lo.start(options.n_iter, options.plot, options.save, options.interval)
