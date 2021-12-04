@@ -15,8 +15,7 @@ class LacconianOptimizer:
         self.non_constraint_mask = self.mesh.vertex_is_constrainted.logical_not()
 
         #Building optimizer.
-        self.displacements = torch.randn(int(torch.sum(self.non_constraint_mask)), 3, device=self.device)*1e-6
-        self.displacements.requires_grad_(True)
+        self.displacements = torch.zeros(int(torch.sum(self.non_constraint_mask)), 3, requires_grad=True, device=self.device)
         self.optimizer = torch.optim.Adam([ self.displacements ], lr=lr)
 
     def start(self, n_iter, plot, save, interval, savelabel):
