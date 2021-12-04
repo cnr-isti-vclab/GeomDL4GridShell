@@ -6,7 +6,7 @@ from utils import save_mesh
 
 class LacconianOptimizer:
 
-    def __init__(self, file, lr, momentum, device):
+    def __init__(self, file, lr, device):
         self.mesh = Mesh(file=file, vertices_have_grad=True, device=device)
         self.lacconian_calculus = LacconianCalculus(device=device)
         self.device = torch.device(device)
@@ -15,8 +15,9 @@ class LacconianOptimizer:
         self.non_constraint_mask = self.mesh.vertex_is_constrainted.logical_not()
 
         #Building optimizer.
-        self.displacements = torch.zeros(int(torch.sum(self.non_constraint_mask)), 3, requires_grad=True, device=self.device)
-        self.optimizer = torch.optim.SGD([ self.displacements ], lr=lr, momentum=momentum)
+        self.displacements = torch.randn(int(torch.sum(self.non_constraint_mask)), 3, device=self.device)*1e-6
+        self.displacements.requires_grad_(True)
+        self.optimizer = torch.optim.Adam([ self.displacements ], lr=lr)
 
     def start(self, n_iter, plot, save, interval, savelabel):
         for iteration in range(n_iter):
@@ -54,5 +55,5 @@ class LacconianOptimizer:
 
 parser = OptimizerOptions()
 options = parser.parse()
-lo = LacconianOptimizer(options.path, options.lr, options.momentum, options.device)
+lo = LacconianOptimizer(options.path, options.lr, options.device)
 lo.start(options.n_iter, options.plot, options.save, options.interval, options.savelabel)

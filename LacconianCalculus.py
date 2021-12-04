@@ -152,8 +152,6 @@ class LacconianCalculus:
         #output rows: [Axial_startNode; Shear2_startNode; Shear3_startNode; Torque_startNode; Bending3_startNode; Bending2_startNode;
         #                ...Axial_endNode; Shear2_endNode; Shear3_endNode; Torque_endNode; Bending3_endNode; Bending2_endNode]
         #mean values of the force is reported for each edge
-        self.signed_node_forces = torch.zeros(len(self.mesh.edges), 2 * DOF, device=self.device)
-        self.mean_forces = torch.zeros(len(self.mesh.edges), DOF, device=self.device)
         self.beam_energy = torch.zeros(len(self.mesh.edges), device=self.device)
 
         for edge_id, edge in enumerate(self.mesh.edges):
@@ -163,17 +161,15 @@ class LacconianCalculus:
 
             #Computing and averaging resulting forces per beam.
             node_forces = self.beam_stiff_matrices[:, :, edge_id] @ self.transition_matrices[:, :, edge_id] @ disp
-            self.signed_node_forces[edge_id, :] =  torch.cat((node_forces[0 : DOF], -node_forces[DOF : 2*DOF]), axis=0) 
-                                                                        #in the node reference system with modified sign
-            self.mean_forces[edge_id, :] = torch.mean(torch.reshape(self.signed_node_forces[edge_id, :], shape=(2, DOF)), axis=0)
+            mean_forces = torch.mul(0.5, node_forces[:DOF] - node_forces[DOF:2*DOF])
 
             #Computing beam energy.
-            self.beam_energy[edge_id] = self.beam_lengths[edge_id]/2 * ( self.mean_forces[edge_id, 0]**2/(self.properties.young*self.properties.cross_area) + 
-                                        self.properties.shear * self.mean_forces[edge_id, 1]**2 / (self.G * self.properties.cross_area) + 
-                                        self.properties.shear * self.mean_forces[edge_id, 2]**2/ (self.G * self.properties.cross_area) + 
-                                        self.mean_forces[edge_id, 3]**2 / (self.G * self.properties.polar) + 
-                                        self.mean_forces[edge_id, 4]**2 / (self.properties.young * self.properties.inertia3) + 
-                                        self.mean_forces[edge_id, 5]**2/ (self.properties.young * self.properties.inertia2) )
+            self.beam_energy[edge_id] = self.beam_lengths[edge_id]/2 * ( mean_forces[0]**2/(self.properties.young*self.properties.cross_area) + 
+                                        self.properties.shear * mean_forces[1]**2 / (self.G * self.properties.cross_area) + 
+                                        self.properties.shear * mean_forces[2]**2/ (self.G * self.properties.cross_area) + 
+                                        mean_forces[3]**2 / (self.G * self.properties.polar) + 
+                                        mean_forces[4]**2 / (self.properties.young * self.properties.inertia3) + 
+                                        mean_forces[5]**2/ (self.properties.young * self.properties.inertia2) )
             
     #Displace initial mesh with self.beam_model_solve() computed translations.
     def displace_mesh(self):
