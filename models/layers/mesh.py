@@ -20,7 +20,7 @@ from torch.nn.functional import normalize
 
 class Mesh:
 
-    def __init__(self, file, hold_history=False, vertices=None, faces=None, device='cpu', gfmm=True, vertices_have_grad=False):
+    def __init__(self, file, hold_history=False, vertices=None, faces=None, device='cpu', gfmm=True):
         if file is None:
             return
         #self.filename = Path(file)
@@ -87,7 +87,7 @@ class Mesh:
         vertex_normals = normalize(vertex_normals, p=2, dim=1)
 
         #Computing edge normals by endpoint means.
-        edge_normals = 0.5 * vertex_normals[self.edges[:, 0], :] + 0.5 * vertex_normals[self.edges[:, 1], :]
+        edge_normals = torch.mul(0.5, vertex_normals[self.edges[:, 0], :] + vertex_normals[self.edges[:, 1], :])
         edge_normals = normalize(edge_normals, p=2, dim=1)
 
         return edge_normals
