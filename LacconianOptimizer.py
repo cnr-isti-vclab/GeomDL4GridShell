@@ -7,7 +7,7 @@ from utils import save_mesh
 class LacconianOptimizer:
 
     def __init__(self, file, lr, device):
-        self.mesh = Mesh(file=file, vertices_have_grad=True, device=device)
+        self.mesh = Mesh(file=file, device=device)
         self.lacconian_calculus = LacconianCalculus(device=device)
         self.device = torch.device(device)
 

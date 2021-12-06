@@ -156,7 +156,7 @@ class LacconianCalculus:
 
         for edge_id, edge in enumerate(self.mesh.edges):
             #Selecting edge endpoint displacements.
-            edge_dofs = torch.cat((6 * edge[0] + torch.arange(6), 6 * edge[1] + torch.arange(6)), dim=0)
+            edge_dofs = torch.cat((6 * edge[0] + torch.arange(DOF), 6 * edge[1] + torch.arange(DOF)), dim=0)
             disp = self.vertex_deformations[edge_dofs]
 
             #Computing and averaging resulting forces per beam.
