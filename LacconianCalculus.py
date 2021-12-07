@@ -21,14 +21,13 @@ class LacconianCalculus:
             self.mesh = Mesh(file, device=device)
             self.set_beam_model_data()
             self.beam_model_solve()
-            self.displace_mesh()
-            self.plot_grid_shell()
 
     def __call__(self, mesh):
         self.mesh = mesh
         self.set_beam_model_data()
         self.beam_model_solve()
         return torch.sum(torch.norm(self.vertex_deformations[:, :3], p=2, dim=1))
+        #return torch.sum(self.beam_energy)
 
     #Store beam properties involved in the task.
     #Custom properties are passed through an iterable whose elements follow this order:
@@ -73,8 +72,7 @@ class LacconianCalculus:
 
         self.beam_frames[:, 0, :] = beam_directions
         self.beam_frames[:, 1, :] = beam_normals
-        self.beam_frames[:, 2, :] = normalize(torch.cross(beam_directions, beam_normals, dim=1), dim=1)
-                                    # renormalization is to prevent numerical orthogonality loss
+        self.beam_frames[:, 2, :] = torch.cross(beam_directions, beam_normals)
 
     #Execute all stiffness and resistence computations.
     def beam_model_solve(self):
@@ -185,4 +183,6 @@ class LacconianCalculus:
         colors = torch.norm(self.vertex_deformations[:, :3], p=2, dim=1)
         self.mesh.plot_mesh(colors)
 
-#lc = LacconianCalculus(file='meshes/simple_grid.ply', device='cpu')
+lc = LacconianCalculus(file='meshes/casestudy_tens.ply', device='cpu')
+lc.displace_mesh()
+lc.plot_grid_shell()

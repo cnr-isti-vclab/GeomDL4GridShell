@@ -15,7 +15,9 @@ class LacconianOptimizer:
         self.non_constraint_mask = self.mesh.vertex_is_constrainted.logical_not()
 
         #Building optimizer.
-        self.displacements = torch.zeros(int(torch.sum(self.non_constraint_mask)), 3, requires_grad=True, device=self.device)
+        lc = LacconianCalculus(file=file)
+        self.displacements = -lc.vertex_deformations[self.non_constraint_mask, :3]
+        self.displacements.requires_grad_()
         self.optimizer = torch.optim.Adam([ self.displacements ], lr=lr)
 
     def start(self, n_iter, plot, save, interval, savelabel):
