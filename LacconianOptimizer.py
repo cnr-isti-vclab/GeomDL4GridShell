@@ -8,16 +8,17 @@ class LacconianOptimizer:
 
     def __init__(self, file, lr, device):
         self.mesh = Mesh(file=file, device=device)
-        self.lacconian_calculus = LacconianCalculus(device=device)
+        self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.mesh)
         self.device = torch.device(device)
 
-        #Keeping non constrainted vertex mask.
-        self.non_constraint_mask = self.mesh.vertex_is_constrainted.logical_not()
-
         #Building optimizer.
-        lc = LacconianCalculus(file=file)
-        self.displacements = -lc.vertex_deformations[self.non_constraint_mask, :3]
+        self.lc = LacconianCalculus(file=file)
+        self.displacements = -self.lc.vertex_deformations[self.lc.non_constrained_vertices, :3]
         self.displacements.requires_grad_()
+        # self.displacements = torch.distributions.Uniform(0,1e-2).sample((len(self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
+        # self.displacements = torch.distributions.Normal(0,1e-2).sample((len(self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
+        # self.displacements.to(device).requires_grad_()
+        # self.displacements = torch.zeros(len(self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3, device=self.device, requires_grad=True)
         self.optimizer = torch.optim.Adam([ self.displacements ], lr=lr)
 
     def start(self, n_iter, plot, save, interval, savelabel):
@@ -26,7 +27,7 @@ class LacconianOptimizer:
             self.optimizer.zero_grad(set_to_none=True)
 
             #Summing displacements to mesh vertices.
-            self.mesh.vertices[self.non_constraint_mask, :] += self.displacements
+            self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices, :] += self.displacements
 
             # Plotting/saving.
             if iteration % interval == 0:
@@ -36,18 +37,18 @@ class LacconianOptimizer:
                     filename = savelabel + '_' + str(iteration) + '.ply'
                     save_mesh(self.mesh, filename)
 
-            loss = self.lacconian_calculus(self.mesh)
+            loss = self.lacconian_calculus()
             print('Iteration: ', iteration, ' Loss: ', loss)
 
             #Computing gradients and updating optimizer
             loss.backward()
             self.optimizer.step()
 
-            #Deleting grad history in mesh.vertices
-            self.mesh.vertices.detach_()
+            #Deleting grad history in all re-usable attributes.
+            self.lacconian_calculus.clean_attributes()
 
     def plot_grid_shell(self):
-        if self.lacconian_calculus.vertex_deformations is None:
+        if not hasattr(self.lacconian_calculus, 'vertex_deformations'):
             self.mesh.plot_mesh()
         else:
             colors = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
