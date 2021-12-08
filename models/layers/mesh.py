@@ -31,7 +31,7 @@ class Mesh:
             self.vertices, self.faces = vertices.cpu().numpy(), faces.cpu().numpy()
             #self.scale, self.translations = 1.0, np.zeros(3,)
         else:
-            self.vertices, self.faces, self.vertex_is_constrainted = load_mesh(file)
+            self.vertices, self.faces, self.vertex_is_constrained = load_mesh(file)
             #self.normalize_unit_bb()
         #self.vs_in = copy.deepcopy(self.vertices)
         #self.v_mask = np.ones(len(self.vertices), dtype=bool)
@@ -48,12 +48,12 @@ class Mesh:
             self.vertices = torch.from_numpy(self.vertices)
         if type(self.faces) is np.ndarray:
             self.faces = torch.from_numpy(self.faces)
-        if type(self.vertex_is_constrainted) is np.ndarray:
-            self.vertex_is_constrainted = torch.from_numpy(self.vertex_is_constrainted)
+        if type(self.vertex_is_constrained) is np.ndarray:
+            self.vertex_is_constrained = torch.from_numpy(self.vertex_is_constrained)
         self.vertices = self.vertices.to(device)
         self.edges = self.edges.long().to(device)
         self.faces = self.faces.long().to(device)
-        self.vertex_is_constrainted = self.vertex_is_constrainted.to(device)
+        self.vertex_is_constrained = self.vertex_is_constrained.to(device)
         #self.face_areas, self.face_normals = self.face_areas_normals(self.vertices, self.faces)
 
     def compute_edge_lengths_and_directions(self):
@@ -75,17 +75,17 @@ class Mesh:
         self.face_areas, self.face_normals = self.face_areas_normals(self.vertices, self.faces, normalize=False)
 
         #Getting face incidence mask per vertex.
-        self.incidence_mask = self.make_per_vertex_face_incidence_mask()
+        if not hasattr(self, 'incidence_mask'):
+            self.incidence_mask = self.make_per_vertex_face_incidence_mask()
 
         #Computing vertex normals from incident faces.
         vertex_normals = torch.zeros(len(self.vertices), 3, device=self.device)
-        for vertex_id in range(len(self.vertices)):
+        for idx, face_vertex_mask in enumerate(self.incidence_mask):
             #Selecting incident faces in the current vertex.
-            ix_mask = self.incidence_mask[vertex_id, :]
-            incident_faces_normals = self.face_normals[ix_mask, :]
+            incident_faces_normals = self.face_normals[face_vertex_mask, :]
 
             #Vertex normal is deduced just by summing.
-            vertex_normals[vertex_id, :] = torch.sum(incident_faces_normals, dim=0)
+            vertex_normals[idx :] = torch.sum(incident_faces_normals, dim=0)
         vertex_normals = normalize(vertex_normals, p=2, dim=1)
 
         #Computing edge normals by endpoint means.
@@ -97,8 +97,8 @@ class Mesh:
     
     def make_per_vertex_face_incidence_mask(self):
         mask = torch.zeros(len(self.vertices), len(self.faces), dtype=torch.bool, device=self.device)
-        for vertex_id in range(len(self.vertices)):
-            mask[vertex_id, :] = torch.any(torch.where(self.faces == vertex_id, True, False), axis=1)
+        for idx, _ in enumerate(self.vertices):
+            mask[idx, :] = torch.any(torch.where(self.faces == idx, True, False), axis=1)
         return mask
 
     @staticmethod
@@ -108,6 +108,7 @@ class Mesh:
         if type(faces) is not torch.Tensor:
             faces = torch.from_numpy(faces).long()
 
+        #Again, vs[faces] aggregates face vertices coordinatres in a (#faces, 3, 3) tensor.
         face_verts = vs[faces]
 
         face_normals = torch.cross(face_verts[:, 1, :] - face_verts[:, 0, :],
