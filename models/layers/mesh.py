@@ -75,11 +75,12 @@ class Mesh:
         self.face_areas, self.face_normals = self.face_areas_normals(self.vertices, self.faces, normalize=False)
 
         #Getting face incidence mask per vertex.
+        #CAUTION: we are re-using same mask as mesh topology don't change.
         if not hasattr(self, 'incidence_mask'):
             self.incidence_mask = self.make_per_vertex_face_incidence_mask()
 
         #Computing vertex normals from incident faces.
-        vertex_normals = torch.zeros(len(self.vertices), 3, device=self.device)
+        vertex_normals = torch.zeros(self.vertices.shape[0], 3, device=self.device)
         for idx, face_vertex_mask in enumerate(self.incidence_mask):
             #Selecting incident faces in the current vertex.
             incident_faces_normals = self.face_normals[face_vertex_mask, :]
@@ -96,7 +97,7 @@ class Mesh:
         return edge_normals
     
     def make_per_vertex_face_incidence_mask(self):
-        mask = torch.zeros(len(self.vertices), len(self.faces), dtype=torch.bool, device=self.device)
+        mask = torch.zeros(self.vertices.shape[0], self.faces.shape[0], dtype=torch.bool, device=self.device)
         for idx, _ in enumerate(self.vertices):
             mask[idx, :] = torch.any(torch.where(self.faces == idx, True, False), axis=1)
         return mask
@@ -135,8 +136,3 @@ class Mesh:
         if colors is not None:
             colors = colors.detach()
         plot_mesh(vertices, faces, colors)
-
-
-
-
-
