@@ -19,11 +19,13 @@ class LacconianCalculus:
             self.mesh = mesh
             self.initialize_containers()
 
-    def __call__(self):
+    def __call__(self, loss_type):
         self.set_beam_model_data()
         self.beam_model_solve()
-        return torch.sum(torch.norm(self.vertex_deformations[:, :3], p=2, dim=1))
-        #return torch.sum(self.beam_energy)
+        if loss_type == 'sum_norm_vertex_deformations':
+            return torch.sum(torch.norm(self.vertex_deformations[:, :3], p=2, dim=1))
+        if loss_type == 'sum_beam_energy':
+            return torch.sum(self.beam_energy)
 
     #Store beam properties involved in the task.
     #Custom properties are passed through a list whose elements follow this order:
@@ -53,13 +55,16 @@ class LacconianCalculus:
     #CAUTION: we are exploiting the fact our iterations preserve mesh connectivity.
     def initialize_containers(self):
         #Beam local frames container: (#edges, 3, 3) torch.tensor.
-        self.beam_frames = torch.zeros(len(self.mesh.edges), 3, 3, device=self.device)
+        self.beam_frames = torch.zeros(self.mesh.edges.shape[0], 3, 3, device=self.device)
 
         #Beam stiff matrices container: (#edges, 2*DOF, 2*DOF) torch.tensor.
-        self.beam_stiff_matrices = torch.zeros(len(self.mesh.edges), 2*DOF, 2*DOF, device=self.device)
+        self.beam_stiff_matrices = torch.zeros(self.mesh.edges.shape[0], 2*DOF, 2*DOF, device=self.device)
 
         #Global stiff matrix: (DOF*#vertices, DOF*#vertices)
-        self.stiff_matrix = torch.zeros(DOF*len(self.mesh.vertices), DOF*len(self.mesh.vertices), device=self.device)
+        self.stiff_matrix = torch.zeros(DOF*self.mesh.vertices.shape[0], DOF*self.mesh.vertices.shape[0], device=self.device)
+
+        #Per-vertex loads vector.
+        self.load = torch.zeros(self.mesh.vertices.shape[0] * DOF, device=self.device)
 
         ###########################################################################################################
         #Building endpoints-related dofs per edge matrix.
@@ -85,8 +90,7 @@ class LacconianCalculus:
         beam_directions, self.beam_lengths = self.mesh.compute_edge_lengths_and_directions()
         beam_normals = self.mesh.compute_edge_normals()
         
-        #Saving load matrix: all entries are zero except Fz who is set -1/3 * weight_per_surface * <sum of all incident face areas>
-        self.load = torch.zeros(len(self.mesh.vertices) * DOF, device=self.device)
+        #Computing per-vertex loads: all entries are zero except Fz who is set -1/3 * weight_per_surface * <sum of all incident face areas>
         for idx, face_vertex_mask in enumerate(self.mesh.incidence_mask):
             self.load[DOF*idx + 2] = 1/3 * self.properties[7] * torch.sum(self.mesh.face_areas[face_vertex_mask])
 
@@ -197,7 +201,7 @@ class LacconianCalculus:
         self.compute_beam_force_and_energy()
 
         #Making deformation tensor by reshaping self.vertex_deformations.
-        self.vertex_deformations = self.vertex_deformations.view(len(self.mesh.vertices), DOF)
+        self.vertex_deformations = self.vertex_deformations.view(self.mesh.vertices.shape[0], DOF)
 
     #Computing beam resulting forces and energies.
     def compute_beam_force_and_energy(self):
@@ -227,6 +231,7 @@ class LacconianCalculus:
 
     def clean_attributes(self):
         self.mesh.vertices.detach_()
+        self.load.detach_()
         self.beam_frames.detach_()
         self.beam_stiff_matrices.detach_()
         self.stiff_matrix.detach_()

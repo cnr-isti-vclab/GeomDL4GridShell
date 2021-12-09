@@ -23,9 +23,9 @@ def save_mesh(mesh, filename):
     vertices = np.float64(mesh.vertices.detach().cpu().numpy())
     faces = mesh.faces.detach().cpu().numpy()
 
-    #Creating vertex_color_matrix from vertex_is_constrainted.
+    #Creating vertex_color_matrix from vertex_is_constrained.
     colors = np.array([ [1., 0., 0., 1] if constr else [0.75294118, 0.75294118, 0.75294118, 1]
-                        for constr in mesh.vertex_is_constrainted ])
+                        for constr in mesh.vertex_is_constrained ])
 
     #Creating pymeshlab MeshSet and adding mesh.
     ms = pymeshlab.MeshSet()
