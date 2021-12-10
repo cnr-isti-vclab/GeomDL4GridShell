@@ -13,22 +13,24 @@ class LacconianOptimizer:
 
         #Initializing displacements.
         if init_mode == 'stress_aided':
-            self.lc = LacconianCalculus(file=file)
+            self.lc = LacconianCalculus(file=file, device=device)
             self.displacements = -self.lc.vertex_deformations[self.lc.non_constrained_vertices, :3]
             self.displacements.requires_grad_()
         elif init_mode == 'uniform':
             self.displacements = torch.distributions.Uniform(0,1e-6).sample((len(self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
-            self.displacements.to(device).requires_grad_()
+            self.displacements = self.displacements.to(device)
+            self.displacements.requires_grad = True
         elif init_mode == 'normal':
             self.displacements = torch.distributions.Normal(0,1e-6).sample((len(self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
-            self.displacements.to(device).requires_grad_()
+            self.displacements = self.displacements.to(device)
+            self.displacements.requires_grad = True
         elif init_mode == 'zeros':
             self.displacements = torch.zeros(len(self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3, device=self.device, requires_grad=True)
 
         #Building optimizer.
         self.optimizer = torch.optim.Adam([ self.displacements ], lr=lr)
 
-    def start(self, n_iter, plot, save, interval, save_label, loss_type):
+    def start(self, n_iter, plot, save, plot_save_interval, display_interval, save_label, loss_type):
         for iteration in range(n_iter):
             #Putting grads to None.
             self.optimizer.zero_grad(set_to_none=True)
@@ -37,7 +39,7 @@ class LacconianOptimizer:
             self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices, :] += self.displacements
 
             # Plotting/saving.
-            if iteration % interval == 0:
+            if iteration % plot_save_interval == 0:
                 if plot:
                     self.plot_grid_shell()
                 if save:
@@ -45,7 +47,9 @@ class LacconianOptimizer:
                     save_mesh(self.mesh, filename)
 
             loss = self.lacconian_calculus(loss_type)
-            print('Iteration: ', iteration, ' Loss: ', loss)
+
+            if iteration % display_interval == 0:
+                print('Iteration: ', iteration, ' Loss: ', loss)
 
             #Computing gradients and updating optimizer
             loss.backward()
@@ -65,4 +69,4 @@ class LacconianOptimizer:
 parser = OptimizerOptions()
 options = parser.parse()
 lo = LacconianOptimizer(options.path, options.lr, options.device, options.init_mode)
-lo.start(options.n_iter, options.plot, options.save, options.interval, options.save_label, options.loss_type)
+lo.start(options.n_iter, options.plot, options.save, options.plot_save_interval, options.display_interval, options.save_label, options.loss_type)
