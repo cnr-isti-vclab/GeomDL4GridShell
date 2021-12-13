@@ -32,7 +32,7 @@ class Mesh:
             self.vertices, self.faces = vertices.cpu().numpy(), faces.cpu().numpy()
             # self.scale, self.translations = 1.0, np.zeros(3,)
         else:
-            self.vertices, self.faces, self.vertex_is_constrained = load_mesh(file)
+            self.vertices, self.faces, self.vertex_is_red, self.vertex_is_blue = load_mesh(file)
             # self.normalize_unit_bb()
         # self.vs_in = copy.deepcopy(self.vertices)
         # self.v_mask = np.ones(len(self.vertices), dtype=bool)
@@ -49,12 +49,15 @@ class Mesh:
             self.vertices = torch.from_numpy(self.vertices)
         if type(self.faces) is np.ndarray:
             self.faces = torch.from_numpy(self.faces)
-        if type(self.vertex_is_constrained) is np.ndarray:
-            self.vertex_is_constrained = torch.from_numpy(self.vertex_is_constrained)
+        if type(self.vertex_is_red) is np.ndarray:
+            self.vertex_is_red = torch.from_numpy(self.vertex_is_red)
+        if type(self.vertex_is_blue) is np.ndarray:
+            self.vertex_is_blue = torch.from_numpy(self.vertex_is_blue)
         self.vertices = self.vertices.to(device)
         self.edges = self.edges.long().to(device)
         self.faces = self.faces.long().to(device)
-        self.vertex_is_constrained = self.vertex_is_constrained.to(device)
+        self.vertex_is_red = self.vertex_is_red.to(device)
+        self.vertex_is_blue = self.vertex_is_blue.to(device)
         # self.face_areas, self.face_normals = self.face_areas_normals(self.vertices, self.faces)
 
     def compute_edge_lengths_and_directions(self):
