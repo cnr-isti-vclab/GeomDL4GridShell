@@ -70,9 +70,16 @@ class LacconianCalculus:
         self.endpoints_dofs_matrix = self.make_edge_endpoints_dofs_matrix()
 
         ###########################################################################################################
-        # Building non-constrained vertex dofs mask, using Kronecker product.
-        self.non_constrained_vertices = self.mesh.vertex_is_constrained.logical_not()
-        self.dofs_non_constrained_mask = torch.kron(self.non_constrained_vertices, torch.tensor([True] * DOF, device=self.device))
+        # Bulding bool tensor masks related to constraints.
+        # Non-constrained vertex mask:
+        self.non_constrained_vertices = torch.logical_or(self.mesh.vertex_is_red, self.mesh.vertex_is_blue).logical_not()
+
+        # Red vertices refer to all dofs constrainess, blue vertices to just translation constrainess.
+        blue_dofs = torch.kron(self.mesh.vertex_is_blue, torch.tensor([True] * int(DOF/2) + [False] * int(DOF/2), device=self.device))
+        red_dofs = torch.kron(self.mesh.vertex_is_red, torch.tensor([True] * DOF, device=self.device))
+
+        # Non-constrained vertex dofs mask.
+        self.dofs_non_constrained_mask = torch.logical_and(blue_dofs.logical_not(), red_dofs.logical_not())
 
     # Please note, + operator in this case makes row-wise arranged torch.arange(DOF) copies each time shiftedy by
     # corresponding 6 * self.mesh.edges[:, 0].unsqueeze(-1) row element.
@@ -214,11 +221,7 @@ class LacconianCalculus:
     def compute_stiff_deformation(self):
         # Solving reduced linear system and adding zeros in constrained dofs.
         self.vertex_deformations = torch.zeros(len(self.mesh.vertices) * DOF, device=self.device)
-        try:
-            sys_sol = torch.linalg.solve(self.stiff_matrix[self.dofs_non_constrained_mask][:, self.dofs_non_constrained_mask], self.load[self.dofs_non_constrained_mask])
-        except:
-            print('Singular stiff matrix found: solving stiff deformation via lstsq.')
-            sys_sol = torch.lstsq(self.stiff_matrix[self.dofs_non_constrained_mask][:, self.dofs_non_constrained_mask], self.load[self.dofs_non_constrained_mask])
+        sys_sol = torch.linalg.solve(self.stiff_matrix[self.dofs_non_constrained_mask][:, self.dofs_non_constrained_mask], self.load[self.dofs_non_constrained_mask])
         self.vertex_deformations[self.dofs_non_constrained_mask] = sys_sol
 
         # Computing beam resulting forces and energies.
@@ -273,6 +276,6 @@ class LacconianCalculus:
         colors = torch.norm(self.vertex_deformations[:, :3], p=2, dim=1)
         self.mesh.plot_mesh(colors)
 
-# lc = LacconianCalculus(file='meshes/go.ply', device='cpu')
+# lc = LacconianCalculus(file='meshes/simple_grid.ply', device='cpu')
 # lc.displace_mesh()
 # lc.plot_grid_shell()
