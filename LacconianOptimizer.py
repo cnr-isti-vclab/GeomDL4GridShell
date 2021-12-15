@@ -4,6 +4,7 @@ from models.layers.mesh import Mesh
 from options.optimizer_options import OptimizerOptions
 from utils import save_mesh
 
+
 class LacconianOptimizer:
 
     def __init__(self, file, lr, device, init_mode, beam_have_load):
