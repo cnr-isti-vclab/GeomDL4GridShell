@@ -1,6 +1,7 @@
 import numpy as np
 import polyscope as ps
 import pymeshlab
+import torch
 
 def load_mesh(path):
     # Creating pymeshlab MeshSet, loading mesh from file and selecting it.
@@ -19,10 +20,12 @@ def load_mesh(path):
    
     return vertices, faces, vertex_is_red, vertex_is_blue
 
-def save_mesh(mesh, filename):
+def save_mesh(mesh, filename, v_quality=np.array([], dtype=np.float64)):
     # Changing torch.tensors to np.arrays.
     vertices = np.float64(mesh.vertices.detach().cpu().numpy())
     faces = mesh.faces.detach().cpu().numpy()
+    if type(v_quality) is torch.Tensor:
+        v_quality = np.float64(v_quality.detach().cpu().numpy())
 
     # Creating vertex_color_matrix from vertex_is_red, vertex_is_blue.
     colors = np.zeros((mesh.vertices.shape[0], 4))
@@ -37,7 +40,7 @@ def save_mesh(mesh, filename):
 
     # Creating pymeshlab MeshSet and adding mesh.
     ms = pymeshlab.MeshSet()
-    mesh = pymeshlab.Mesh(vertex_matrix=vertices, face_matrix=faces, v_color_matrix=colors)
+    mesh = pymeshlab.Mesh(vertex_matrix=vertices, face_matrix=faces, v_color_matrix=colors, v_quality_array=v_quality)
     ms.add_mesh(mesh, set_as_current=True)
 
     # Saving mesh on filename.

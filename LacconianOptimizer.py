@@ -42,10 +42,19 @@ class LacconianOptimizer:
             # Plotting/saving.
             if iteration % plot_save_interval == 0:
                 if plot:
-                    self.plot_grid_shell()
+                    if not hasattr(self.lacconian_calculus, 'vertex_deformations'):
+                        self.mesh.plot_mesh()
+                    else:
+                        colors = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
+                        self.mesh.plot_mesh(colors=colors)
+
                 if save:
                     filename = save_label + '_' + str(iteration) + '.ply'
-                    save_mesh(self.mesh, filename)
+                    if not hasattr(self.lacconian_calculus, 'vertex_deformations'):
+                        save_mesh(self.mesh, filename)
+                    else:
+                        quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
+                        save_mesh(self.mesh, filename, v_quality=quality.unsqueeze(1))
 
             loss = self.lacconian_calculus(loss_type)
 
@@ -58,14 +67,6 @@ class LacconianOptimizer:
 
             # Deleting grad history in all re-usable attributes.
             self.lacconian_calculus.clean_attributes()
-
-    def plot_grid_shell(self):
-        if not hasattr(self.lacconian_calculus, 'vertex_deformations'):
-            self.mesh.plot_mesh()
-        else:
-            colors = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
-            self.mesh.plot_mesh(colors=colors)
-
 
 parser = OptimizerOptions()
 options = parser.parse()
