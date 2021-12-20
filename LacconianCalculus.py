@@ -19,27 +19,31 @@ class LacconianCalculus:
         if mesh is not None:
             self.mesh = mesh
             self.initialize_containers()
+            self.set_beam_model_data()
+            self.beam_model_solve()
 
     def __call__(self, loss_type):
         self.set_beam_model_data()
         self.beam_model_solve()
+
+        # Giving right loss corresponding with loss_type.
         if loss_type == 'sum_norm_vertex_deformations':
             return torch.sum(torch.norm(self.vertex_deformations[:, :3], p=2, dim=1))
-        if loss_type == 'sum_beam_energy':
+        elif loss_type == 'sum_beam_energy':
             return torch.sum(self.beam_energy)
 
     # Store beam properties involved in the task.
     # Custom properties are passed through a list whose elements follow this order:
     #
-    # -- Poisson's ratio, default is 0.3;
-    # -- Young's modulus, default is 2.1*10^8 kN/m^2;
-    # -- beam section area, default is 1*10^-3 m^2; 
-    # -- moment of inertia2 Ixx = Iyy, default is 4.189828*10^-8, round section;
-    # -- moment of interia3 Ixx = Iyy, default is 4.189828*10^-8, round section;
-    # -- polar moment, default is 8.379656e-8;
-    # -- shear section factor, default is 1.2;
-    # -- weight per surface unit, default is 3 kN/m^2;
-    # -- beam density, default is 78.5 kN/m^3.
+    # -- [0] Poisson's ratio, default is 0.3;
+    # -- [1] Young's modulus, default is 2.1*10^8 kN/m^2;
+    # -- [2] beam section area, default is 1*10^-3 m^2; 
+    # -- [3] moment of inertia2 Ixx = Iyy, default is 4.189828*10^-8, round section;
+    # -- [4] moment of inertia3 Ixx = Iyy, default is 4.189828*10^-8, round section;
+    # -- [5] polar moment, default is 8.379656e-8;
+    # -- [6] shear section factor, default is 1.2;
+    # -- [7] weight per surface unit, default is 3 kN/m^2;
+    # -- [8] beam density, default is 78.5 kN/m^3.
     #
     def set_beam_properties(self, beam_properties):
         if beam_properties is not None:
