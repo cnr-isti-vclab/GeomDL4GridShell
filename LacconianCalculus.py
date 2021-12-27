@@ -106,13 +106,13 @@ class LacconianCalculus:
         if self.beam_have_load:
             beam_loads = torch.mul(self.beam_lengths, -1/2 * self.properties[2] * self.properties[8])
             expanded_beam_loads = torch.ones(self.mesh.vertices.shape[0], 1, device=self.device) @ beam_loads.unsqueeze(0)
-            masked_beam_loads = torch.mul(expanded_beam_loads, self.mesh.edge_incidence_mask)
+            masked_beam_loads = torch.mul(expanded_beam_loads, self.mesh.vertex_edge_mask)
             on_vertices_beam_loads = torch.sum(masked_beam_loads, dim=1)
 
         # Computing face loads on each vertex: -1/3 * <face areas> * <weight per surface unit> (face load is equally parted to vertices) along z.
         face_loads = torch.mul(self.mesh.face_areas, -1/3 * self.properties[7])
         expanded_face_loads = torch.ones(self.mesh.vertices.shape[0], 1, device=self.device) @ face_loads.unsqueeze(0)
-        masked_face_loads = torch.mul(expanded_face_loads, self.mesh.face_incidence_mask)
+        masked_face_loads = torch.mul(expanded_face_loads, self.mesh.vertex_face_mask)
         on_vertices_face_loads = torch.sum(masked_face_loads, dim=1)
 
         # Summing beam and face components to compute per-vertex loads.
@@ -280,6 +280,6 @@ class LacconianCalculus:
         colors = torch.norm(self.vertex_deformations[:, :3], p=2, dim=1)
         self.mesh.plot_mesh(colors)
 
-# lc = LacconianCalculus(file='meshes/simple_grid.ply', device='cpu')
+# lc = LacconianCalculus(file='meshes/go.ply', device='cpu')
 # lc.displace_mesh()
 # lc.plot_grid_shell()
