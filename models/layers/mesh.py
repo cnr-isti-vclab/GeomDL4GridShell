@@ -80,38 +80,43 @@ class Mesh:
 
         # Getting face incidence mask per vertex.
         # CAUTION: we are re-using same mask as mesh topology don't change.
-        if not hasattr(self, 'face_incidence_mask'):
-            self.face_incidence_mask, self.edge_incidence_mask = self.make_per_vertex_incidence_masks()
+        if not hasattr(self, 'vertex_face_mask'):
+            self.vertex_face_mask, self.vertex_edge_mask, self.edge_face_mask = self.make_incidence_masks()
 
         ############################################################################################################
-        # Computing vertex normals from incident faces.
-        # Some details: we work on (#axes, #vertices, #faces) tensor. Along dim 0 there are 3 directional batches,
-        # along dim 1 we move towards all possible vertices and dim 2 is related to faces.
+        # Computing edge normals by weighting normals from incident faces.
+        # Some details: we work on (#axes, #edges, #faces) tensor. Along dim 0 there are 3 directional batches,
+        # along dim 1 we move towards all possible edges and dim 2 is related to faces.
         reshaped_face_normals = self.face_normals.T.view(3, 1, self.faces.shape[0])
-        expanded_face_normals = torch.ones(3, self.vertices.shape[0], 1, device=self.device) @ reshaped_face_normals
+        expanded_face_normals = torch.ones(3, self.edges.shape[0], 1, device=self.device) @ reshaped_face_normals
 
         # Vertex-face incidence mask is applied to each one of three batches.
-        masked_face_normals = torch.mul(expanded_face_normals, self.face_incidence_mask)
+        masked_face_normals = torch.mul(expanded_face_normals, self.edge_face_mask)
 
-        # Vertex normals are computed by summing masked (#axes, #vertices, #faces) tensor along face dimension (dim=2).
-        vertex_normals = torch.sum(masked_face_normals, dim=2)
-        vertex_normals = normalize(vertex_normals.T, p=2, dim=1)
-
-        # Computing edge normals by endpoint means.
-        edge_vertices_normals = vertex_normals[self.edges]
-        edge_normals = torch.mul(0.5, edge_vertices_normals[:, 0, :] + edge_vertices_normals[:, 1, :])
-        edge_normals = normalize(edge_normals, p=2, dim=1)
+        # Edge normals are computed by summing masked (#axes, #edges, #faces) tensor along face dimension (dim=2).
+        edge_normals = torch.sum(masked_face_normals, dim=2)
+        edge_normals = normalize(edge_normals.T, p=2, dim=1)
 
         return edge_normals
     
-    # This method builds boolean tensors giving incident faces/edges per vertex.
-    def make_per_vertex_incidence_masks(self):
+    # This method builds boolean tensors giving incident faces/edges per vertex, faces per edge.
+    def make_incidence_masks(self):
         vf_mask = torch.zeros(self.vertices.shape[0], self.faces.shape[0], dtype=torch.bool, device=self.device)
         ve_mask = torch.zeros(self.vertices.shape[0], self.edges.shape[0], dtype=torch.bool, device=self.device)
+        ef_mask = torch.zeros(self.edges.shape[0], self.faces.shape[0], dtype=torch.bool, device=self.device)
+
+        # Building per vertex masks.
         for idx, _ in enumerate(self.vertices):
             vf_mask[idx, :] = torch.any(torch.where(self.faces == idx, True, False), axis=1)
             ve_mask[idx, :] = torch.any(torch.where(self.edges == idx, True, False), axis=1)
-        return vf_mask, ve_mask
+
+        # Building per edge mask.
+        for idx, edge in enumerate(self.edges):
+            face_has_endpt0 = torch.any(torch.where(self.faces == edge[0], True, False), axis=1)
+            face_has_endpt1 = torch.any(torch.where(self.faces == edge[1], True, False), axis=1)
+            ef_mask[idx, :] = torch.logical_and(face_has_endpt0, face_has_endpt1)
+
+        return vf_mask, ve_mask, ef_mask
 
     @staticmethod
     def face_areas_normals(vs, faces, normalize=True):
