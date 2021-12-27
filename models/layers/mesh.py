@@ -7,7 +7,6 @@
 # -- Mesh.normals renamed to Mesh.face_normals;
 # -- Mesh.area renamed to Mesh.face_areas.
 
-from numpy.core.fromnumeric import reshape
 import torch
 import numpy as np
 # from queue import Queue
