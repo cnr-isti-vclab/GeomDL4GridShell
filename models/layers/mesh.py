@@ -87,7 +87,9 @@ class Mesh:
         # Some details: we work on (#axes, #edges, #faces) tensor. Along dim 0 there are 3 directional batches,
         # along dim 1 we move towards all possible edges and dim 2 is related to faces.
         reshaped_face_normals = self.face_normals.T.view(3, 1, self.faces.shape[0])
-        expanded_face_normals = torch.ones(3, self.edges.shape[0], 1, device=self.device) @ reshaped_face_normals
+        
+        # expand(shape) repeat tensor elements to reach target shape: -1 means that dim is preserved.
+        expanded_face_normals = reshaped_face_normals.expand(-1, self.edges.shape[0], -1)
 
         # Vertex-face incidence mask is applied to each one of three batches.
         masked_face_normals = torch.mul(expanded_face_normals, self.edge_face_mask)
