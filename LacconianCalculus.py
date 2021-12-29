@@ -70,8 +70,8 @@ class LacconianCalculus:
         self.load = torch.zeros(self.mesh.vertices.shape[0] * DOF, device=self.device)
 
         ###########################################################################################################
-        # Building endpoints-related dofs per edge matrix.
-        self.endpoints_dofs_matrix = self.make_edge_endpoints_dofs_matrix()
+        # Storing augmented stiffmatrix non-zero indices.
+        self.augmented_stiff_idx = self.make_augmented_stiffmatrix_nnz_indices()
 
         ###########################################################################################################
         # Bulding bool tensor masks related to constraints.
@@ -91,7 +91,17 @@ class LacconianCalculus:
     def make_edge_endpoints_dofs_matrix(self):
         endpts_0 = 6 * self.mesh.edges[:, 0].unsqueeze(-1) + torch.arange(DOF, device=self.device)
         endpts_1 = 6 * self.mesh.edges[:, 1].unsqueeze(-1) + torch.arange(DOF, device=self.device)
-        return torch.cat((endpts_0, endpts_1), dim=1)
+        return torch.cat((endpts_0, endpts_1), dim=1) 
+
+    # It builds augmented stiffmatrix non-zero element tensor according to vertex dofs.
+    def make_augmented_stiffmatrix_nnz_indices(self):
+        self.endpoints_dofs_matrix = self.make_edge_endpoints_dofs_matrix()
+
+        dim0_idx = torch.arange(self.mesh.edges.shape[0], device=self.device).unsqueeze(1).expand(-1, (2*DOF)**2).flatten()
+        dim1_idx = self.endpoints_dofs_matrix.view(-1, 1).expand(-1, 2*DOF).flatten()
+        dim2_idx = self.endpoints_dofs_matrix.expand(2*DOF, -1, -1).transpose(0, 1).flatten()
+
+        return torch.cat([dim0_idx.unsqueeze(0), dim1_idx.unsqueeze(0), dim2_idx.unsqueeze(0)], dim=0)
 
     # Stores load matrix, beam lengths, beam local frames.
     # Load matrix (no. vertices x DOF) has row-structure (Fx, Fy, Fz, Mx, My, Mz) whose values are referred to global ref system.
@@ -215,11 +225,11 @@ class LacconianCalculus:
 
         ###########################################################################################################
         # Building global stiff matrix by adding all beam contributions.
-        # Global stiff matrix: (DOF*#vertices, DOF*#vertices)
-        self.stiff_matrix = torch.zeros(DOF * self.mesh.vertices.shape[0], DOF * self.mesh.vertices.shape[0], device=self.device)
-        for idx, dofs in enumerate(self.endpoints_dofs_matrix):
-            rows, columns = torch.meshgrid(dofs, dofs, indexing='ij')
-            self.stiff_matrix[rows, columns] += beam_contributions[idx, :, :]
+        # Global stiff matrix: (DOF*#vertices, DOF*#vertices), computed by sum-contracting an augmented sparse
+        # (#edges, DOF*#vertices, DOF*#vertices) tensor over dimension 0.
+        size = (self.mesh.edges.shape[0], DOF * self.mesh.vertices.shape[0], DOF * self.mesh.vertices.shape[0])
+        augmented_stiff_matrix = torch.sparse_coo_tensor(self.augmented_stiff_idx, beam_contributions.flatten(), size=size, device=self.device)
+        self.stiff_matrix = torch.sparse.sum(augmented_stiff_matrix, dim=0).to_dense()
 
     # Compute vertex deformations by solving a stiff-matrix-based linear system.
     def compute_stiff_deformation(self):
