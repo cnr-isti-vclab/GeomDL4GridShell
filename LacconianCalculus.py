@@ -119,11 +119,17 @@ class LacconianCalculus:
             masked_beam_loads = torch.mul(expanded_beam_loads, self.mesh.vertex_edge_mask)
             on_vertices_beam_loads = torch.sum(masked_beam_loads, dim=1)
 
+            # Freeing memory space
+            del beam_loads, expanded_beam_loads, masked_beam_loads
+
         # Computing face loads on each vertex: -1/3 * <face areas> * <weight per surface unit> (face load is equally parted to vertices) along z.
         face_loads = torch.mul(self.mesh.face_areas, -1/3 * self.properties[7])
         expanded_face_loads = face_loads.expand(self.mesh.vertices.shape[0], -1)
         masked_face_loads = torch.mul(expanded_face_loads, self.mesh.vertex_face_mask)
         on_vertices_face_loads = torch.sum(masked_face_loads, dim=1)
+
+        # Freeing memory space
+        del face_loads, expanded_face_loads, masked_face_loads
 
         # Summing beam and face components to compute per-vertex loads.
         if self.beam_have_load:
@@ -136,6 +142,9 @@ class LacconianCalculus:
         self.beam_frames[:, 0, :] = beam_directions
         self.beam_frames[:, 1, :] = beam_normals
         self.beam_frames[:, 2, :] = torch.cross(beam_directions, beam_normals)
+
+        # Freeing memory space
+        del beam_directions, beam_normals
 
     # Execute all stiffness and resistence computations.
     def beam_model_solve(self):
@@ -210,12 +219,12 @@ class LacconianCalculus:
         self.beam_stiff_matrices[:, 11, 5] = self.beam_stiff_matrices[:, 5, 11] = torch.mul(2, k8)
 
         ###########################################################################################################
-        # Assembling beam-local to global transition matrices via Kronecker product: container is again a 
+        # Assembling beam-local to global transition matrices via Kronecker product: container is again a
         # 3-dimensional torch.tensor.
         transition_matrices = torch.kron(torch.eye(4, 4, device=self.device), self.beam_frames)
 
         ###########################################################################################################
-        # Building beam contributions to global stiff matrix: container (beam_contributions) is a 3d torch.tensor, 
+        # Building beam contributions to global stiff matrix: container (beam_contributions) is a 3d torch.tensor,
         # another contanier (self.beam_forces_contributions) for products beam_stiff_matrix @ transition_matrix
         # is saved in order not to repeat steps in node forces computation phase.
         # Please note: @ operator for 3d tensors produces a 'batched' 2d matrix multiplication along sections.
@@ -241,6 +250,9 @@ class LacconianCalculus:
         sys_sol = torch.linalg.solve(self.stiff_matrix[self.dofs_non_constrained_mask][:, self.dofs_non_constrained_mask], self.load[self.dofs_non_constrained_mask])
         self.vertex_deformations[self.dofs_non_constrained_mask] = sys_sol
 
+        # Freeing memory space.
+        del self.stiff_matrix, sys_sol
+
         # Computing beam resulting forces and energies.
         self.compute_beam_force_and_energy()
 
@@ -249,12 +261,12 @@ class LacconianCalculus:
 
     # Computing beam resulting forces and energies.
     def compute_beam_force_and_energy(self):
-        # edge_dofs_deformations aggregates vertex_deformation in a edge-endpoints-wise manner: (#edges, 2*DOF) torch.tensor 
+        # edge_dofs_deformations aggregates vertex_deformation in a edge-endpoints-wise manner: (#edges, 2*DOF) torch.tensor
         edge_dofs_deformations = self.vertex_deformations[self.endpoints_dofs_matrix]
 
         #############################################################################################################################
         # Computing resulting forces at nodes via 'batched' matrix multiplication @.
-        # Some details: 
+        # Some details:
         # edge_dofs_deformations.unsqueeze(2) expands (#edges, 2*DOF) to #edge batches of (2*DOF, 1), i.e. (#edges, 2*DOF, 1) tensor;
         # vice-versa, (...).squeeze(2) contracts (#edges, 2*DOF, 1) -> (#edges, 2*DOF)
         node_forces = (self.beam_forces_contributions @ edge_dofs_deformations.unsqueeze(2)).squeeze(2)
@@ -266,11 +278,11 @@ class LacconianCalculus:
         # axes: 1=elementAxis; 2=EdgeNormal; 3=InPlaneAxis
         # output rows: [Axial_startNode; Shear2_startNode; Shear3_startNode; Torque_startNode; Bending3_startNode; Bending2_startNode;
         #                ...Axial_endNode; Shear2_endNode; Shear3_endNode; Torque_endNode; Bending3_endNode; Bending2_endNode]
-        self.beam_energy = self.beam_lengths/2 * ( mean_forces[:, 0]**2/(self.properties[1]*self.properties[2]) + 
-                            self.properties[6] * mean_forces[:, 1]**2 / (self.properties[9] * self.properties[2]) + 
-                            self.properties[6] * mean_forces[:, 2]**2 / (self.properties[9] * self.properties[2]) + 
-                            mean_forces[:, 3]**2 / (self.properties[9] * self.properties[5]) + 
-                            mean_forces[:, 4]**2 / (self.properties[1] * self.properties[4]) + 
+        self.beam_energy = self.beam_lengths/2 * ( mean_forces[:, 0]**2/(self.properties[1]*self.properties[2]) +
+                            self.properties[6] * mean_forces[:, 1]**2 / (self.properties[9] * self.properties[2]) +
+                            self.properties[6] * mean_forces[:, 2]**2 / (self.properties[9] * self.properties[2]) +
+                            mean_forces[:, 3]**2 / (self.properties[9] * self.properties[5]) +
+                            mean_forces[:, 4]**2 / (self.properties[1] * self.properties[4]) +
                             mean_forces[:, 5]**2 / (self.properties[1] * self.properties[3]) )
 
     def clean_attributes(self):
