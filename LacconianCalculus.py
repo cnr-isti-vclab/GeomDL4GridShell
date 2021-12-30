@@ -212,15 +212,15 @@ class LacconianCalculus:
         ###########################################################################################################
         # Assembling beam-local to global transition matrices via Kronecker product: container is again a 
         # 3-dimensional torch.tensor.
-        self.transition_matrices = torch.kron(torch.eye(4, 4, device=self.device), self.beam_frames)
+        transition_matrices = torch.kron(torch.eye(4, 4, device=self.device), self.beam_frames)
 
         ###########################################################################################################
         # Building beam contributions to global stiff matrix: container (beam_contributions) is a 3d torch.tensor, 
         # another contanier (self.beam_forces_contributions) for products beam_stiff_matrix @ transition_matrix
         # is saved in order not to repeat steps in node forces computation phase.
         # Please note: @ operator for 3d tensors produces a 'batched' 2d matrix multiplication along sections.
-        self.beam_forces_contributions = self.beam_stiff_matrices @ self.transition_matrices
-        beam_contributions = torch.transpose(self.transition_matrices, 1, 2) @ self.beam_forces_contributions
+        self.beam_forces_contributions = self.beam_stiff_matrices @ transition_matrices
+        beam_contributions = torch.transpose(transition_matrices, 1, 2) @ self.beam_forces_contributions
                                                 #torch.transpose(_, 1, 2) transpose along dimensions 1 and 2
 
         ###########################################################################################################
@@ -230,6 +230,9 @@ class LacconianCalculus:
         size = (self.mesh.edges.shape[0], DOF * self.mesh.vertices.shape[0], DOF * self.mesh.vertices.shape[0])
         augmented_stiff_matrix = torch.sparse_coo_tensor(self.augmented_stiff_idx, beam_contributions.flatten(), size=size, device=self.device)
         self.stiff_matrix = torch.sparse.sum(augmented_stiff_matrix, dim=0).to_dense()
+
+        # Freeing memory space.
+        del transition_matrices, beam_contributions, augmented_stiff_matrix, squared_beam_lenghts, cubed_beam_lenghts
 
     # Compute vertex deformations by solving a stiff-matrix-based linear system.
     def compute_stiff_deformation(self):
