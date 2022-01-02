@@ -285,6 +285,9 @@ class LacconianCalculus:
                             mean_forces[:, 4]**2 / (self.properties[1] * self.properties[4]) +
                             mean_forces[:, 5]**2 / (self.properties[1] * self.properties[3]) )
 
+        # Freeing memory space.
+        del edge_dofs_deformations, self.beam_forces_contributions, self.beam_lengths
+
     def clean_attributes(self):
         self.mesh.vertices.detach_()
         self.load.detach_()
