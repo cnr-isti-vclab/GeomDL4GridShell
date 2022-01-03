@@ -10,7 +10,7 @@
 import torch
 import numpy as np
 # from queue import Queue
-from utils import load_mesh, plot_mesh, get_edge_matrix
+from utils import load_mesh, plot_mesh, edge_connectivity
 from torch.nn.functional import normalize
 # import copy
 # from pathlib import Path
@@ -40,10 +40,12 @@ class Mesh:
         # if hold_history:
         #     self.init_history()
         # if gfmm:
-        #     self.gfmm = self.build_gfmm() #TODO get rid of this DS
+        #     self.gfmm = self.build_gfmm() TODO get rid of this DS
         # else:
         #     self.gfmm = None
-        self.edges = torch.from_numpy(get_edge_matrix(self.faces))
+        edges, edges_per_face = edge_connectivity(self.faces)
+        self.edges = torch.from_numpy(edges)
+        self.edges_per_face = torch.from_numpy(edges_per_face)
         if type(self.vertices) is np.ndarray:
             self.vertices = torch.from_numpy(self.vertices)
         if type(self.faces) is np.ndarray:
@@ -55,6 +57,7 @@ class Mesh:
         self.vertices = self.vertices.to(device)
         self.edges = self.edges.long().to(device)
         self.faces = self.faces.long().to(device)
+        self.edges_per_face = self.edges_per_face.long().to(device)
         self.vertex_is_red = self.vertex_is_red.to(device)
         self.vertex_is_blue = self.vertex_is_blue.to(device)
         # self.face_areas, self.face_normals = self.face_areas_normals(self.vertices, self.faces)
@@ -66,12 +69,10 @@ class Mesh:
         edge_directions = edge_verts[:, 1, :] - edge_verts[:, 0, :]
 
         # Computing edge lengths.
-        edge_lengths = torch.norm(edge_directions, p=2, dim=1)
+        self.edge_lengths = torch.norm(edge_directions, p=2, dim=1)
 
         # Normalizing edge directions.
-        edge_directions = edge_directions / edge_lengths[:, None]
-
-        return edge_directions, edge_lengths
+        self.edge_directions = edge_directions / self.edge_lengths.unsqueeze(1)
 
     def compute_edge_normals(self):
         # Getting face normals and areas.
@@ -96,9 +97,7 @@ class Mesh:
 
         # Edge normals are computed by summing masked (#axes, #edges, #faces) tensor along face dimension (dim=2).
         edge_normals = torch.sum(masked_face_normals, dim=2)
-        edge_normals = normalize(edge_normals.T, p=2, dim=1)
-
-        return edge_normals
+        self.edge_normals = normalize(edge_normals.T, p=2, dim=1)
     
     # This method builds boolean tensors giving incident faces/edges per vertex, faces per edge.
     def make_incidence_masks(self):
@@ -119,6 +118,12 @@ class Mesh:
 
         return vf_mask, ve_mask, ef_mask
 
+    # Makes all the mesh computations needed and shared with loss classes: face areas and normals, edge lengths and
+    # directions, edge normals. 
+    def make_on_mesh_shared_computations(self):
+        self.compute_edge_lengths_and_directions()
+        self.compute_edge_normals()
+
     @staticmethod
     def face_areas_normals(vs, faces, normalize=True):
         if type(vs) is not torch.Tensor:
@@ -134,11 +139,10 @@ class Mesh:
         face_areas = torch.norm(face_normals, dim=1)
 
         if normalize:
-            face_normals = face_normals / face_areas[:, None]
+            face_normals = face_normals / face_areas.unsqueeze(1)
         face_areas = torch.mul(0.5, face_areas)
 
         return face_areas, face_normals
-
 
     def update_verts(self, verts):
         """
