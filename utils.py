@@ -71,14 +71,22 @@ def plot_mesh(v, f, colors=None, cmap='viridis'):
 
     ps.show()
 
-def get_edge_matrix(face_matrix):
-    # Initializing edge list.
+def edge_connectivity(face_matrix):
+    # Initializing edge lists.
     edge_list = []
+    edge_per_face = []
 
     for face in face_matrix:
+        current_face_list = []
+
         for i in range(3):
             edge = sorted([face[i], face[(i + 1) % 3]])
             if edge not in edge_list:
+                current_face_list.append(len(edge_list))
                 edge_list.append(edge)
+            else:
+                current_face_list.append(edge_list.index(edge))
+                
+        edge_per_face.append(current_face_list)
 
-    return np.array(edge_list)
+    return np.array(edge_list), np.array(edge_per_face)

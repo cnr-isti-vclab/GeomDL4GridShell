@@ -41,6 +41,9 @@ class LacconianOptimizer:
             # Summing displacements to mesh vertices.
             self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices, :] += self.displacements
 
+            # Making on mesh loss-shared computations.
+            self.mesh.make_on_mesh_shared_computations()
+
             # Plotting/saving.
             if iteration % plot_save_interval == 0:
                 if plot:
