@@ -93,14 +93,14 @@ class LacconianCalculus:
         endpts_1 = 6 * self.mesh.edges[:, 1].unsqueeze(-1) + torch.arange(DOF, device=self.device)
         return torch.cat((endpts_0, endpts_1), dim=1) 
 
-    # It builds augmented stiffmatrix non-zero element tensor according to vertex dofs.
+    # Builds augmented stiffmatrix non-zero element tensor according to vertex dofs.
     def make_augmented_stiffmatrix_nnz_indices(self):
         self.endpoints_dofs_matrix = self.make_edge_endpoints_dofs_matrix()
 
         dim1_idx = self.endpoints_dofs_matrix.view(-1, 1).expand(-1, 2*DOF).flatten()
         dim2_idx = self.endpoints_dofs_matrix.expand(2*DOF, -1, -1).transpose(0, 1).flatten()
 
-        return torch.cat([dim1_idx.unsqueeze(0), dim2_idx.unsqueeze(0)], dim=0)
+        return torch.stack([dim1_idx, dim2_idx], dim=0)
 
     # Stores load matrix and builds beam frames.
     # Load matrix (no. vertices x DOF) has row-structure (Fx, Fy, Fz, Mx, My, Mz) whose values are referred to global ref system.
@@ -108,23 +108,19 @@ class LacconianCalculus:
         #####################################################################################################################################
         # Load computation.
         # Computing beam loads on each vertex: -1/2 * <beam volume> * <beam density> (beam load is equally parted to endpoints) along z-axis.
+        # Some details: vec.scatter_add(0, idx, src) with vec, idx, src 1d tensors, add at vec positions specified
+        # by idx corresponding src values.
         if self.beam_have_load:
             beam_loads = torch.mul(self.mesh.edge_lengths, -1/2 * self.properties[2] * self.properties[8])
-            expanded_beam_loads = beam_loads.expand(self.mesh.vertices.shape[0], -1)
-            masked_beam_loads = torch.mul(expanded_beam_loads, self.mesh.vertex_edge_mask)
-            on_vertices_beam_loads = torch.sum(masked_beam_loads, dim=1)
-
-            # Freeing memory space
-            del beam_loads, expanded_beam_loads, masked_beam_loads
+            on_vertices_beam_loads = torch.zeros(self.mesh.vertices.shape[0], device=self.device)
+            on_vertices_beam_loads.scatter_add_(0, self.mesh.edges.flatten(), torch.stack([beam_loads] * 2, dim=1).flatten())
 
         # Computing face loads on each vertex: -1/3 * <face areas> * <weight per surface unit> (face load is equally parted to vertices) along z.
+        # Some details: vec.scatter_add(0, idx, src) with vec, idx, src 1d tensors, add at vec positions specified
+        # by idx corresponding src values.
         face_loads = torch.mul(self.mesh.face_areas, -1/3 * self.properties[7])
-        expanded_face_loads = face_loads.expand(self.mesh.vertices.shape[0], -1)
-        masked_face_loads = torch.mul(expanded_face_loads, self.mesh.vertex_face_mask)
-        on_vertices_face_loads = torch.sum(masked_face_loads, dim=1)
-
-        # Freeing memory space
-        del face_loads, expanded_face_loads, masked_face_loads
+        on_vertices_face_loads = torch.zeros(self.mesh.vertices.shape[0], device=self.device)
+        on_vertices_face_loads.scatter_add_(0, self.mesh.faces.flatten(), torch.stack([face_loads] * 3, dim=1).flatten())
 
         # Summing beam and face components to compute per-vertex loads.
         if self.beam_have_load:
@@ -300,6 +296,6 @@ class LacconianCalculus:
         colors = torch.norm(self.vertex_deformations[:, :3], p=2, dim=1)
         self.mesh.plot_mesh(colors)
 
-# lc = LacconianCalculus(file='meshes/Neumunster.ply', device='cpu')
+# lc = LacconianCalculus(file='meshes/go.ply', device='cpu')
 # lc.displace_mesh()
 # lc.plot_grid_shell()
