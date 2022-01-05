@@ -91,7 +91,7 @@ class LaplacianSmoothing:
         ii = mesh.faces[:, [1, 2, 0]]
         jj = mesh.faces[:, [2, 0, 1]]
         idx = torch.stack([ii, jj], dim=0).view(2, mesh.faces.shape[0] * 3)
-        L = torch.sparse.FloatTensor(idx, cot.view(-1), (mesh.vertices.shape[0], mesh.vertices.shape[0]), device=self.device)
+        L = torch.sparse_coo_tensor(idx, cot.view(-1), (mesh.vertices.shape[0], mesh.vertices.shape[0]), device=self.device)
 
         # Make it symmetric; this means we are also setting
         # L[v2, v1] = cota

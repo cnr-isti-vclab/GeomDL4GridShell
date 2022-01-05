@@ -97,11 +97,10 @@ class LacconianCalculus:
     def make_augmented_stiffmatrix_nnz_indices(self):
         self.endpoints_dofs_matrix = self.make_edge_endpoints_dofs_matrix()
 
-        dim0_idx = torch.arange(self.mesh.edges.shape[0], device=self.device).unsqueeze(1).expand(-1, (2*DOF)**2).flatten()
         dim1_idx = self.endpoints_dofs_matrix.view(-1, 1).expand(-1, 2*DOF).flatten()
         dim2_idx = self.endpoints_dofs_matrix.expand(2*DOF, -1, -1).transpose(0, 1).flatten()
 
-        return torch.cat([dim0_idx.unsqueeze(0), dim1_idx.unsqueeze(0), dim2_idx.unsqueeze(0)], dim=0)
+        return torch.cat([dim1_idx.unsqueeze(0), dim2_idx.unsqueeze(0)], dim=0)
 
     # Stores load matrix and builds beam frames.
     # Load matrix (no. vertices x DOF) has row-structure (Fx, Fy, Fz, Mx, My, Mz) whose values are referred to global ref system.
@@ -227,11 +226,11 @@ class LacconianCalculus:
 
         ###########################################################################################################
         # Building global stiff matrix by adding all beam contributions.
-        # Global stiff matrix: (DOF*#vertices, DOF*#vertices), computed by sum-contracting an augmented sparse
-        # (#edges, DOF*#vertices, DOF*#vertices) tensor over dimension 0.
-        size = (self.mesh.edges.shape[0], DOF * self.mesh.vertices.shape[0], DOF * self.mesh.vertices.shape[0])
+        # Global stiff matrix: (DOF*#vertices, DOF*#vertices), computed by densing an augmented sparse
+        # (DOF*#vertices, DOF*#vertices), admitting several entries for the same ij coordinate couple.
+        size = (DOF * self.mesh.vertices.shape[0], DOF * self.mesh.vertices.shape[0])
         augmented_stiff_matrix = torch.sparse_coo_tensor(self.augmented_stiff_idx, beam_contributions.flatten(), size=size, device=self.device)
-        self.stiff_matrix = torch.sparse.sum(augmented_stiff_matrix, dim=0).to_dense()
+        self.stiff_matrix = augmented_stiff_matrix.to_dense()
 
         # Freeing memory space.
         del transition_matrices, beam_contributions, augmented_stiff_matrix, squared_beam_lenghts, cubed_beam_lenghts
@@ -301,6 +300,6 @@ class LacconianCalculus:
         colors = torch.norm(self.vertex_deformations[:, :3], p=2, dim=1)
         self.mesh.plot_mesh(colors)
 
-# lc = LacconianCalculus(file='meshes/go.ply', device='cpu')
+# lc = LacconianCalculus(file='meshes/Neumunster.ply', device='cpu')
 # lc.displace_mesh()
 # lc.plot_grid_shell()
