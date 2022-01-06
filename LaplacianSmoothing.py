@@ -14,16 +14,21 @@ class LaplacianSmoothing:
     def __call__(self, mesh):
         '''
         LaplacianSmoothing loss is related to mean curvature averaged over vertices.
-        Recalling that ||LV[i]|| = 2 * H(V[i]), H mean curvature, we use as loss
+        Recalling that ||LV[i]|| = H(V[i]), H mean curvature, we use as loss
         1/|V| * sum_V[i] ||LV[i]||.
         '''
         with torch.no_grad():
-            L = self.cotan_matrix(mesh)
-            norm_w = torch.sparse.sum(L, dim=1).to_dense().view(-1, 1)
-            idx = norm_w > 0
-            norm_w[idx] = 1.0 / norm_w[idx]
+            L, inv_areas = self.cotan_matrix(mesh)
+            L_sum = torch.sparse.sum(L, dim=1).to_dense().view(-1,1)
+            norm_w = 0.25 * inv_areas
 
-        loss = L.mm(mesh.vertices) * norm_w - mesh.vertices
+        '''
+        We have
+        LV[i] = sum_j w_ij * (v_j - v_i) = (sum_j w_ij * v_j) - (sum_j w_ij * v_i) 
+                                                                L_sum[i] * v_i
+        1/(4*A[i]) are multiplied at the end (as norm_w).
+        '''
+        loss = (L.mm(mesh.vertices) - L_sum * mesh.vertices) * norm_w
         loss = torch.norm(loss, dim=1)
         loss = torch.mean(loss)
         return loss
@@ -44,8 +49,9 @@ class LaplacianSmoothing:
                b_ij
         The definition of the Laplacian is LV[i] = sum_j w_ij (v_j - v_i)
         For the uniform variant,    w_ij = 1 / |S[i]|
-        We use the cotangent laplacian variant,
-            w_ij = (cot a_ij + cot b_ij) / (sum_k cot a_ik + cot b_ik)
+        We use the cotangent laplacian curvature variant,
+            w_ij = (cot a_ij + cot b_ij) / (4 * A[i])
+        where A[i] is the sum of the areas of all triangles containing vertex v_i.
         There is a nice trigonometry identity to compute cotangents. Consider a triangle
         with side lengths A, B, C and angles a, b, c.
                c
@@ -64,10 +70,6 @@ class LaplacianSmoothing:
         B^2 + C^2 - A^2     2BC cos a
         _______________  =  _________ = (B/H) cos a = cos a / sin a = cot a
            4 * area            2CH
-
-        Since sum_j w_ij = 1, we have
-        LV[i] = sum_j w_ij * (v_j - v_i) = sum_j w_ij * v_j - (sum_j w_ij) * v_i =
-              = (sum_j w_ij * v_j) - v_i.
         '''
 
         # Given a generic face F = <v0, v1, v2>, A contains lengths of v0-opposite edges,
@@ -99,4 +101,13 @@ class LaplacianSmoothing:
         # L[v1, v0] = cotc
         L += L.t()
 
-        return L
+        # For each vertex, compute the sum of areas for triangles containing it.
+        idx = mesh.faces.flatten()
+        inv_areas = torch.zeros(mesh.vertices.shape[0], device=self.device)
+        val = torch.stack([mesh.face_areas] * 3, dim=1).flatten()
+        inv_areas.scatter_add_(0, idx, val)
+        idx = inv_areas > 0
+        inv_areas[idx] = 1.0 / inv_areas[idx]
+        inv_areas = inv_areas.view(-1,1)
+
+        return L, inv_areas
