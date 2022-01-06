@@ -82,38 +82,13 @@ class Mesh:
         # Computing edge normals by weighting normals from (at least 2) incident faces.
         # Some details: vec.scatter_add(0, idx, src) with vec, idx, src 1d tensors, add at vec positions specified
         # by idx corresponding src values.
-        n0 = torch.zeros(self.edges.shape[0], device=self.device)
-        n0.scatter_add_(0, self.edges_per_face.flatten(), torch.stack([self.face_normals[:, 0]] * 3, dim=1).flatten())
+        self.edge_normals = torch.zeros(self.edges.shape[0], 3, device=self.device)
 
-        n1 = torch.zeros(self.edges.shape[0], device=self.device)
-        n1.scatter_add_(0, self.edges_per_face.flatten(), torch.stack([self.face_normals[:, 1]] * 3, dim=1).flatten())
+        self.edge_normals[:, 0].scatter_add_(0, self.edges_per_face.flatten(), torch.stack([self.face_normals[:, 0]] * 3, dim=1).flatten())
+        self.edge_normals[:, 1].scatter_add_(0, self.edges_per_face.flatten(), torch.stack([self.face_normals[:, 1]] * 3, dim=1).flatten())
+        self.edge_normals[:, 2].scatter_add_(0, self.edges_per_face.flatten(), torch.stack([self.face_normals[:, 2]] * 3, dim=1).flatten())
 
-        n2 = torch.zeros(self.edges.shape[0], device=self.device)
-        n2.scatter_add_(0, self.edges_per_face.flatten(), torch.stack([self.face_normals[:, 2]] * 3, dim=1).flatten())
-
-        self.edge_normals = torch.stack([n0, n1, n2], dim=1)
-
-
-    # This method builds boolean tensors giving incident faces/edges per vertex, faces per edge.
-    def make_incidence_masks(self):
-        vf_mask = torch.zeros(self.vertices.shape[0], self.faces.shape[0], dtype=torch.bool, device=self.device)
-        ve_mask = torch.zeros(self.vertices.shape[0], self.edges.shape[0], dtype=torch.bool, device=self.device)
-        ef_mask = torch.zeros(self.edges.shape[0], self.faces.shape[0], dtype=torch.bool, device=self.device)
-
-        # Building per vertex masks.
-        for idx, _ in enumerate(self.vertices):
-            vf_mask[idx, :] = torch.any(torch.where(self.faces == idx, True, False), axis=1)
-            ve_mask[idx, :] = torch.any(torch.where(self.edges == idx, True, False), axis=1)
-
-        # Building per edge mask.
-        for idx, edge in enumerate(self.edges):
-            face_has_endpt0 = torch.any(torch.where(self.faces == edge[0], True, False), axis=1)
-            face_has_endpt1 = torch.any(torch.where(self.faces == edge[1], True, False), axis=1)
-            ef_mask[idx, :] = torch.logical_and(face_has_endpt0, face_has_endpt1)
-
-        return vf_mask, ve_mask, ef_mask
-
-    # Makes all the mesh computations needed and shared with loss classes: face areas and normals, edge lengths and
+    # Makes all mesh computations needed and shared between loss classes: face areas and normals, edge lengths and
     # directions, edge normals. 
     def make_on_mesh_shared_computations(self):
         self.compute_edge_lengths_and_directions()
