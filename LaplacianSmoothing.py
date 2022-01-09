@@ -1,14 +1,12 @@
 '''
 Adapted from pytorch3d.loss.mesh_laplacian_smoothing.py; pytorch3d.ops.laplacian_matrices.py
-https://github.com/facebookresearch/pytorch3d/blob/main/pytorch3d/ops/laplacian_matrices.py
-https://github.com/facebookresearch/pytorch3d/blob/main/pytorch3d/ops/laplacian_matrices.py
 Copyright (c) Facebook, Inc. and its affiliates.
 '''
 import torch
 
 class LaplacianSmoothing:
 
-    def __init__(self, device):
+    def __init__(self, device='cpu'):
         self.device = torch.device(device)
 
     def __call__(self, mesh):

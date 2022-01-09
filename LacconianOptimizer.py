@@ -2,6 +2,7 @@ import torch
 import time
 from LacconianCalculus import LacconianCalculus
 from LaplacianSmoothing import LaplacianSmoothing
+from NormalConsistency import NormalConsistency
 from models.layers.mesh import Mesh
 from options.optimizer_options import OptimizerOptions
 from utils import save_mesh
@@ -9,11 +10,13 @@ from utils import save_mesh
 
 class LacconianOptimizer:
 
-    def __init__(self, file, lr, device, init_mode, beam_have_load, with_laplacian_smooth):
+    def __init__(self, file, lr, device, init_mode, beam_have_load, with_laplacian_smooth, with_normal_consistency):
         self.mesh = Mesh(file=file, device=device)
         self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.mesh, beam_have_load=beam_have_load)
         if with_laplacian_smooth:
             self.laplacian_smoothing = LaplacianSmoothing(device=device)
+        if with_normal_consistency:
+            self.normal_consistency = NormalConsistency(self.mesh, device=device)
         self.device = torch.device(device)
 
         # Initializing displacements.
@@ -61,6 +64,8 @@ class LacconianOptimizer:
             loss = self.lacconian_calculus(loss_type)
             if hasattr(self, 'laplacian_smoothing'):
                 loss += self.laplacian_smoothing(self.mesh)
+            if hasattr(self, 'normal_consistency'):
+                loss += self.normal_consistency()
 
             if iteration % display_interval == 0:
                 print('Iteration: ', iteration, ' Loss: ', loss)
@@ -79,5 +84,5 @@ class LacconianOptimizer:
 
 parser = OptimizerOptions()
 options = parser.parse()
-lo = LacconianOptimizer(options.path, options.lr, options.device, options.init_mode, options.beam_have_load, options.with_laplacian_smooth)
+lo = LacconianOptimizer(options.path, options.lr, options.device, options.init_mode, options.beam_have_load, options.with_laplacian_smooth, options.with_normal_consistency)
 lo.start(options.n_iter, options.plot, options.save, options.plot_save_interval, options.display_interval, options.save_label, options.loss_type)
