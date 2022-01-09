@@ -18,6 +18,7 @@ class OptimizerOptions:
         self.parser.add_argument('--initmode', dest='init_mode', type=str, default='stress_aided', help='Initial deformation rules')
         self.parser.add_argument('--beamload', dest='beam_have_load', action='store_true', default=False, help='If beams give load to verts or not')
         self.parser.add_argument('--laplaciansmooth', dest='with_laplacian_smooth', action='store_true', default=False, help='If laplacian mesh smoothing is requested or not')
+        self.parser.add_argument('--normalconsistency', dest='with_normal_consistency', action='store_true', default=False, help='If mesh normal consistency is requested or not')
 
     def parse(self):
         return self.parser.parse_args()
