@@ -65,7 +65,7 @@ class LacconianOptimizer:
             if hasattr(self, 'laplacian_smoothing'):
                 loss += self.laplacian_smoothing(self.mesh)
             if hasattr(self, 'normal_consistency'):
-                loss += 30000*self.normal_consistency()
+                loss += self.normal_consistency()
 
             if iteration % display_interval == 0:
                 print('Iteration: ', iteration, ' Loss: ', loss)
