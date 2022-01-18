@@ -40,7 +40,7 @@ class LacconianOptimizer:
 
     def start(self, n_iter, plot, save, plot_save_interval, display_interval, save_label, loss_type):
         for iteration in range(n_iter):
-            self.iter_start = time.time()
+            # self.iter_start = time.time()
             # Putting grads to None.
             self.optimizer.zero_grad(set_to_none=True)
 
@@ -65,22 +65,22 @@ class LacconianOptimizer:
             if hasattr(self, 'laplacian_smoothing'):
                 loss += self.laplacian_smoothing(self.mesh)
             if hasattr(self, 'normal_consistency'):
-                loss += self.normal_consistency()
+                loss += 30000*self.normal_consistency()
 
             if iteration % display_interval == 0:
                 print('Iteration: ', iteration, ' Loss: ', loss)
 
             # Computing gradients and updating optimizer
-            self.back_start = time.time()
+            # self.back_start = time.time()
             loss.backward()
-            self.back_end = time.time()
+            # self.back_end = time.time()
             self.optimizer.step()
 
             # Deleting grad history in all re-usable attributes.
             self.lacconian_calculus.clean_attributes()
-            self.iter_end = time.time()
-            print('Iteration time: ' + str(self.iter_end - self.iter_start))
-            print('Backward time: ' + str(self.back_end - self.back_start))
+            # self.iter_end = time.time()
+            # print('Iteration time: ' + str(self.iter_end - self.iter_start))
+            # print('Backward time: ' + str(self.back_end - self.back_start))
 
 parser = OptimizerOptions()
 options = parser.parse()
