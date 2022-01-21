@@ -27,10 +27,10 @@ class LacconianCalculus:
         self.beam_model_solve()
 
         # Giving right loss corresponding with loss_type.
-        if loss_type == 'sum_norm_vertex_deformations':
+        if loss_type == 'norm_vertex_deformations':
             return torch.sum(torch.norm(self.vertex_deformations[:, :3], p=2, dim=1))
-        elif loss_type == 'sum_beam_energy':
-            return torch.sum(self.beam_energy)
+        elif loss_type == 'mean_beam_energy':
+            return torch.mean(self.beam_energy)
 
     # Store beam properties involved in the task.
     # Custom properties are passed through a list whose elements follow this order:

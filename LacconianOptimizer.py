@@ -10,13 +10,30 @@ from utils import save_mesh
 
 class LacconianOptimizer:
 
-    def __init__(self, file, lr, device, init_mode, beam_have_load, with_laplacian_smooth, with_normal_consistency):
+    def __init__(self, file, lr, device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, laplsmooth_loss_perc, normcons_loss_perc):
         self.mesh = Mesh(file=file, device=device)
+        self.loss_type = loss_type
         self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.mesh, beam_have_load=beam_have_load)
+
+        loss_0 = float(self.lacconian_calculus(self.loss_type))
+        eps = 1e-3
+
         if with_laplacian_smooth:
             self.laplacian_smoothing = LaplacianSmoothing(device=device)
+            if laplsmooth_loss_perc == -1:
+                self.laplsmooth_scaling_factor = 1
+            else:
+                laplacian_smooth_0 = float(self.laplacian_smoothing(self.mesh))
+                self.laplsmooth_scaling_factor = laplsmooth_loss_perc * loss_0 / max(laplacian_smooth_0, eps)
+
         if with_normal_consistency:
             self.normal_consistency = NormalConsistency(self.mesh, device=device)
+            if normcons_loss_perc == -1:
+                self.normcons_scaling_factor = 1
+            else:
+                normal_consistency_0 = float(self.normal_consistency())
+                self.normcons_scaling_factor = normcons_loss_perc * loss_0 / max(normal_consistency_0, eps)
+
         self.device = torch.device(device)
 
         # Initializing displacements.
@@ -38,7 +55,7 @@ class LacconianOptimizer:
         # Building optimizer.
         self.optimizer = torch.optim.Adam([ self.displacements ], lr=lr)
 
-    def start(self, n_iter, plot, save, plot_save_interval, display_interval, save_label, loss_type):
+    def start(self, n_iter, plot, save, plot_save_interval, display_interval, save_label):
         for iteration in range(n_iter):
             # self.iter_start = time.time()
             # Putting grads to None.
@@ -61,11 +78,11 @@ class LacconianOptimizer:
                     quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
                     save_mesh(self.mesh, filename, v_quality=quality.unsqueeze(1))
 
-            loss = self.lacconian_calculus(loss_type)
+            loss = self.lacconian_calculus(self.loss_type)
             if hasattr(self, 'laplacian_smoothing'):
-                loss += self.laplacian_smoothing(self.mesh)
+                loss += self.laplsmooth_scaling_factor * self.laplacian_smoothing(self.mesh)
             if hasattr(self, 'normal_consistency'):
-                loss += self.normal_consistency()
+                loss += self.normcons_scaling_factor * self.normal_consistency()
 
             if iteration % display_interval == 0:
                 print('Iteration: ', iteration, ' Loss: ', loss)
@@ -84,5 +101,5 @@ class LacconianOptimizer:
 
 parser = OptimizerOptions()
 options = parser.parse()
-lo = LacconianOptimizer(options.path, options.lr, options.device, options.init_mode, options.beam_have_load, options.with_laplacian_smooth, options.with_normal_consistency)
-lo.start(options.n_iter, options.plot, options.save, options.plot_save_interval, options.display_interval, options.save_label, options.loss_type)
+lo = LacconianOptimizer(options.path, options.lr, options.device, options.init_mode, options.beam_have_load, options.loss_type, options.with_laplacian_smooth, options.with_normal_consistency, options.laplsmooth_loss_perc, options.normcons_loss_perc)
+lo.start(options.n_iter, options.plot, options.save, options.plot_save_interval, options.display_interval, options.save_label)
