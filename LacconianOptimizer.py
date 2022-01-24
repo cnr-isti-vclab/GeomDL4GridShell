@@ -1,5 +1,6 @@
 import torch
 import time
+import copy
 from LacconianCalculus import LacconianCalculus
 from LaplacianSmoothing import LaplacianSmoothing
 from NormalConsistency import NormalConsistency
@@ -18,6 +19,7 @@ class LacconianOptimizer:
         loss_0 = float(self.lacconian_calculus(self.loss_type))
         eps = 1e-3
 
+        # Finding laplacian smoothing loss scaling factor according to input percentage.
         if with_laplacian_smooth:
             self.laplacian_smoothing = LaplacianSmoothing(device=device)
             if laplsmooth_loss_perc == -1:
@@ -26,6 +28,7 @@ class LacconianOptimizer:
                 laplacian_smooth_0 = float(self.laplacian_smoothing(self.mesh))
                 self.laplsmooth_scaling_factor = laplsmooth_loss_perc * loss_0 / max(laplacian_smooth_0, eps)
 
+        # Finding normal consistency loss scaling factor according to input percentage.
         if with_normal_consistency:
             self.normal_consistency = NormalConsistency(self.mesh, device=device)
             if normcons_loss_perc == -1:
@@ -55,9 +58,13 @@ class LacconianOptimizer:
         # Building optimizer.
         self.optimizer = torch.optim.Adam([ self.displacements ], lr=lr)
 
-    def start(self, n_iter, plot, save, plot_save_interval, display_interval, save_label):
+    def start(self, n_iter, plot, save, plot_save_interval, display_interval, save_label, take_times, save_prefix='', wandb_run=None):
+        # Initializing best loss.
+        best_loss = float('inf')
+
         for iteration in range(n_iter):
-            # self.iter_start = time.time()
+            iter_start = time.time()
+
             # Putting grads to None.
             self.optimizer.zero_grad(set_to_none=True)
 
@@ -74,32 +81,81 @@ class LacconianOptimizer:
                     self.mesh.plot_mesh(colors=colors)
 
                 if save:
-                    filename = save_label + '_' + str(iteration) + '.ply'
+                    filename = save_prefix + save_label + '_' + str(iteration) + '.ply'
                     quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
-                    save_mesh(self.mesh, filename, v_quality=quality.unsqueeze(1))
+                    save_mesh(self.mesh.vertices, self.mesh.faces, self.mesh.vertex_is_red, self.mesh.vertex_is_blue, filename, v_quality=quality.unsqueeze(1))
 
+            # Initializing wandb log dictionary.
+            log_dict = {}
+
+            # Computing loss by summing components.
+            # Lacconian loss.
             loss = self.lacconian_calculus(self.loss_type)
-            if hasattr(self, 'laplacian_smoothing'):
-                loss += self.laplsmooth_scaling_factor * self.laplacian_smoothing(self.mesh)
-            if hasattr(self, 'normal_consistency'):
-                loss += self.normcons_scaling_factor * self.normal_consistency()
+            log_dict['loss'] = loss
+            log_dict['max_displacement_norm'] = torch.max(torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1))
 
-            if iteration % display_interval == 0:
-                print('Iteration: ', iteration, ' Loss: ', loss)
+            # Laplacian smoothing.
+            if hasattr(self, 'laplacian_smoothing'):
+                ls = self.laplacian_smoothing(self.mesh)
+                log_dict['laplacian_smoothing'] = ls
+                loss += self.laplsmooth_scaling_factor * ls
+
+            # Normal consistency.
+            if hasattr(self, 'normal_consistency'):
+                nc = self.normal_consistency()
+                log_dict['normal_consistency'] = nc
+                loss += self.normcons_scaling_factor * nc
+
+            # Displaying loss if requested.
+            if display_interval != -1 and iteration % display_interval == 0:
+                print('*********** Iteration: ', iteration, ' Loss: ', loss, '***********')
+
+            # Keeping data if loss is best.
+            if loss < best_loss:
+                best_loss = loss
+                best_iteration = iteration
+
+                # Saving laplacian smoothing and normal consistency loss at best iteration.
+                if hasattr(self, 'laplacian_smoothing'):
+                    laplacian_smoothing_at_best_iteration = ls
+                if hasattr(self, 'laplacian_smoothing'):
+                    normal_consistency_at_best_iteration = nc
+
+                # CAUTION: we do not store best_mesh_faces as meshing do not change.
+                if save:
+                        best_mesh_vertices = copy.deepcopy(self.mesh.vertices.detach())
+                        best_quality = quality
+
+            # Logging on wandb, if requested.
+            if wandb_run is not None:
+                wandb_run.log(log_dict)
+                wandb_run.summary['best_iteration'] = best_iteration
+                wandb_run.summary['laplacian_smoothing_at_best_iteration'] = laplacian_smoothing_at_best_iteration
+                wandb_run.summary['normal_consistency_at_best_iteration'] = normal_consistency_at_best_iteration
 
             # Computing gradients and updating optimizer
-            # self.back_start = time.time()
+            back_start = time.time()
             loss.backward()
-            # self.back_end = time.time()
+            back_end = time.time()
             self.optimizer.step()
 
             # Deleting grad history in all re-usable attributes.
             self.lacconian_calculus.clean_attributes()
-            # self.iter_end = time.time()
-            # print('Iteration time: ' + str(self.iter_end - self.iter_start))
-            # print('Backward time: ' + str(self.back_end - self.back_start))
 
-parser = OptimizerOptions()
-options = parser.parse()
-lo = LacconianOptimizer(options.path, options.lr, options.device, options.init_mode, options.beam_have_load, options.loss_type, options.with_laplacian_smooth, options.with_normal_consistency, options.laplsmooth_loss_perc, options.normcons_loss_perc)
-lo.start(options.n_iter, options.plot, options.save, options.plot_save_interval, options.display_interval, options.save_label)
+            iter_end = time.time()
+
+            # Displaying times if requested.
+            if take_times:
+                print('Iteration time: ' + str(iter_end - iter_start))
+                print('Backward time: ' + str(back_end - back_start))
+
+        # Saving best mesh, if mesh saving is enabled.
+        if save and n_iter > 0:
+            filename = save_prefix + '[BEST]' + save_label + '_' + str(best_iteration) + '.ply'
+            save_mesh(best_mesh_vertices, self.mesh.faces, self.mesh.vertex_is_red, self.mesh.vertex_is_blue, filename, v_quality=best_quality.unsqueeze(1))
+
+if __name__ == '__main__':
+    parser = OptimizerOptions()
+    options = parser.parse()
+    lo = LacconianOptimizer(options.path, options.lr, options.device, options.init_mode, options.beam_have_load, options.loss_type, options.with_laplacian_smooth, options.with_normal_consistency, options.laplsmooth_loss_perc, options.normcons_loss_perc)
+    lo.start(options.n_iter, options.plot, options.save, options.plot_save_interval, options.display_interval, options.save_label, options.take_times)
