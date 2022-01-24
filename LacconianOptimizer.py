@@ -91,7 +91,7 @@ class LacconianOptimizer:
             # Computing loss by summing components.
             # Lacconian loss.
             loss = self.lacconian_calculus(self.loss_type)
-            log_dict['structural_loss'] = loss
+            log_dict['structural_loss'] = copy.deepcopy(loss.detach())
             log_dict['max_displacement_norm'] = torch.max(torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1))
 
             # Laplacian smoothing.
