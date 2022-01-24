@@ -17,6 +17,7 @@ class OptimizerOptions:
         self.parser.add_argument('--losstype', dest='loss_type', type=str, default='norm_vertex_deformations', help='Type of loss computed')
         self.parser.add_argument('--initmode', dest='init_mode', type=str, default='stress_aided', help='Initial deformation rules')
         self.parser.add_argument('--beamload', dest='beam_have_load', action='store_true', default=False, help='If beams give load to verts or not')
+        self.parser.add_argument('--itertimes', dest='take_times', action='store_true', default=False, help='If iteration and backward times are required or not')
         self.parser.add_argument('--laplaciansmooth', dest='with_laplacian_smooth', action='store_true', default=False, help='If laplacian mesh smoothing is requested or not')
         self.parser.add_argument('--normalconsistency', dest='with_normal_consistency', action='store_true', default=False, help='If mesh normal consistency lis requested or not')
         self.parser.add_argument('--laplsmoothlossperc', dest='laplsmooth_loss_perc', type=float, default=-1, help='laplacian smoothing percentual weight w.r.t. lacconian loss')
