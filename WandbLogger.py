@@ -71,6 +71,7 @@ class WandbLogger:
 
         # Defining metrics.
         wandb.define_metric('loss', summary='min')
+        wandb.define_metric('structural_loss', summary='min')
         wandb.define_metric('laplacian_smoothing', summary='min')
         wandb.define_metric('normal_consistency', summary='min')
         wandb.define_metric('max_displacement_norm', summary='min')
