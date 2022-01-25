@@ -89,10 +89,16 @@ class LacconianOptimizer:
             log_dict = {}
 
             # Computing loss by summing components.
+            loss = 0
+
             # Lacconian loss.
-            loss = self.lacconian_calculus(self.loss_type)
-            log_dict['structural_loss'] = copy.deepcopy(loss.detach())
-            log_dict['max_displacement_norm'] = torch.max(torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1))
+            structural_loss = self.lacconian_calculus(self.loss_type)
+            loss += structural_loss
+            log_dict['structural_loss'] = structural_loss
+
+            # Keeping max displacement.
+            max_displacement_norm = torch.max(torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1))
+            log_dict['max_displacement_norm'] = max_displacement_norm
 
             # Laplacian smoothing.
             if hasattr(self, 'laplacian_smoothing'):
@@ -117,7 +123,9 @@ class LacconianOptimizer:
                 best_loss = loss
                 best_iteration = iteration
 
-                # Saving laplacian smoothing and normal consistency loss at best iteration.
+                # Saving losses at best iteration.
+                structural_loss_at_best_iteration = structural_loss
+                max_displacement_norm_at_best_iteration = max_displacement_norm
                 if hasattr(self, 'laplacian_smoothing'):
                     laplacian_smoothing_at_best_iteration = ls
                 if hasattr(self, 'laplacian_smoothing'):
@@ -125,13 +133,15 @@ class LacconianOptimizer:
 
                 # CAUTION: we do not store best_mesh_faces as meshing do not change.
                 if save:
-                        best_mesh_vertices = copy.deepcopy(self.mesh.vertices.detach())
-                        best_quality = quality
+                    best_mesh_vertices = copy.deepcopy(self.mesh.vertices.detach())
+                    best_quality = quality
 
             # Logging on wandb, if requested.
             if wandb_run is not None:
                 wandb_run.log(log_dict)
                 wandb_run.summary['best_iteration'] = best_iteration
+                wandb_run.summary['structural_loss_at_best_iteration'] = structural_loss_at_best_iteration
+                wandb_run.summary['max_displacement_norm_at_best_iteration'] = max_displacement_norm_at_best_iteration
                 wandb_run.summary['laplacian_smoothing_at_best_iteration'] = laplacian_smoothing_at_best_iteration
                 wandb_run.summary['normal_consistency_at_best_iteration'] = normal_consistency_at_best_iteration
 
