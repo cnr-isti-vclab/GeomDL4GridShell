@@ -70,11 +70,12 @@ class WandbLogger:
         run.save()
 
         # Defining metrics.
-        wandb.define_metric('loss', summary='min')
-        wandb.define_metric('structural_loss', summary='min')
-        wandb.define_metric('max_displacement_norm', summary='min')
-        wandb.define_metric('laplacian_smoothing', summary='min')
-        wandb.define_metric('normal_consistency', summary='min')
+        wandb.define_metric('loss', summary='min')                      # Total loss, i.e. sum of all components.
+        wandb.define_metric('structural_loss', summary='min')           # Structural loss component, specificed in row['LOSS'].
+        wandb.define_metric('max_displacement_norm', summary='min')     # Max norm of vertex displacements from original mesh.
+        wandb.define_metric('max_deformation_norm', summary='min')      # Max norm of vertex load deformations.
+        wandb.define_metric('laplacian_smoothing', summary='min')       # Laplacian smoothing loss component.
+        wandb.define_metric('normal_consistency', summary='min')        # Normal consistency loss component.
 
         # Making current run mesh directory.
         path = 'Results/Meshes/' + str(row['INDEX'])

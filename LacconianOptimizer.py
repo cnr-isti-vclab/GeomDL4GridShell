@@ -1,6 +1,5 @@
 import torch
 import time
-import copy
 from LacconianCalculus import LacconianCalculus
 from LaplacianSmoothing import LaplacianSmoothing
 from NormalConsistency import NormalConsistency
@@ -16,7 +15,9 @@ class LacconianOptimizer:
         self.loss_type = loss_type
         self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.mesh, beam_have_load=beam_have_load)
 
-        loss_0 = float(self.lacconian_calculus(self.loss_type))
+        # Taking useful initial data.
+        loss_0 = self.lacconian_calculus(self.loss_type)
+        self.vertices_0 = torch.clone(self.mesh.vertices)
         eps = 1e-3
 
         # Finding laplacian smoothing loss scaling factor according to input percentage.
@@ -25,7 +26,7 @@ class LacconianOptimizer:
             if laplsmooth_loss_perc == -1:
                 self.laplsmooth_scaling_factor = 1
             else:
-                laplacian_smooth_0 = float(self.laplacian_smoothing(self.mesh))
+                laplacian_smooth_0 = self.laplacian_smoothing(self.mesh)
                 self.laplsmooth_scaling_factor = laplsmooth_loss_perc * loss_0 / max(laplacian_smooth_0, eps)
 
         # Finding normal consistency loss scaling factor according to input percentage.
@@ -34,7 +35,7 @@ class LacconianOptimizer:
             if normcons_loss_perc == -1:
                 self.normcons_scaling_factor = 1
             else:
-                normal_consistency_0 = float(self.normal_consistency())
+                normal_consistency_0 = self.normal_consistency()
                 self.normcons_scaling_factor = normcons_loss_perc * loss_0 / max(normal_consistency_0, eps)
 
         self.device = torch.device(device)
@@ -43,7 +44,7 @@ class LacconianOptimizer:
         if init_mode == 'stress_aided':
             self.lc = LacconianCalculus(file=file, device=device, beam_have_load=beam_have_load)
             self.displacements = -self.lc.vertex_deformations[self.lc.non_constrained_vertices, :3]
-            self.displacements.requires_grad_()
+            self.displacements.requires_grad = True
         elif init_mode == 'uniform':
             self.displacements = torch.distributions.Uniform(0,1e-6).sample((len(self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
             self.displacements = self.displacements.to(device)
@@ -60,7 +61,7 @@ class LacconianOptimizer:
 
     def start(self, n_iter, plot, save, plot_save_interval, display_interval, save_label, take_times, save_prefix='', wandb_run=None):
         # Initializing best loss.
-        best_loss = float('inf')
+        best_loss = torch.tensor(float('inf'), device=self.device)
 
         for iteration in range(n_iter):
             iter_start = time.time()
@@ -68,8 +69,15 @@ class LacconianOptimizer:
             # Putting grads to None.
             self.optimizer.zero_grad(set_to_none=True)
 
+            # Initializing wandb log dictionary.
+            log_dict = {}
+
             # Summing displacements to mesh vertices.
             self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices, :] += self.displacements
+
+            # Keeping max vertex displacement norm per iteration.
+            max_displacement_norm = torch.max(torch.norm(self.mesh.vertices - self.vertices_0, p=2, dim=1))
+            log_dict['max_displacement_norm'] = max_displacement_norm
 
             # Making on mesh loss-shared computations.
             self.mesh.make_on_mesh_shared_computations()
@@ -85,9 +93,6 @@ class LacconianOptimizer:
                     quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
                     save_mesh(self.mesh.vertices, self.mesh.faces, self.mesh.vertex_is_red, self.mesh.vertex_is_blue, filename, v_quality=quality.unsqueeze(1))
 
-            # Initializing wandb log dictionary.
-            log_dict = {}
-
             # Computing loss by summing components.
             loss = 0
 
@@ -96,9 +101,9 @@ class LacconianOptimizer:
             loss += structural_loss
             log_dict['structural_loss'] = structural_loss
 
-            # Keeping max displacement.
-            max_displacement_norm = torch.max(torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1))
-            log_dict['max_displacement_norm'] = max_displacement_norm
+            # Keeping max stress deformation.
+            max_deformation_norm = torch.max(torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1))
+            log_dict['max_deformation_norm'] = max_deformation_norm
 
             # Laplacian smoothing.
             if hasattr(self, 'laplacian_smoothing'):
@@ -126,6 +131,7 @@ class LacconianOptimizer:
                 # Saving losses at best iteration.
                 structural_loss_at_best_iteration = structural_loss
                 max_displacement_norm_at_best_iteration = max_displacement_norm
+                max_deformation_norm_at_best_iteration = max_deformation_norm
                 if hasattr(self, 'laplacian_smoothing'):
                     laplacian_smoothing_at_best_iteration = ls
                 if hasattr(self, 'laplacian_smoothing'):
@@ -133,7 +139,7 @@ class LacconianOptimizer:
 
                 # CAUTION: we do not store best_mesh_faces as meshing do not change.
                 if save:
-                    best_mesh_vertices = copy.deepcopy(self.mesh.vertices.detach())
+                    best_mesh_vertices = torch.clone(self.mesh.vertices)
                     best_quality = quality
 
             # Logging on wandb, if requested.
@@ -142,6 +148,7 @@ class LacconianOptimizer:
                 wandb_run.summary['best_iteration'] = best_iteration
                 wandb_run.summary['structural_loss_at_best_iteration'] = structural_loss_at_best_iteration
                 wandb_run.summary['max_displacement_norm_at_best_iteration'] = max_displacement_norm_at_best_iteration
+                wandb_run.summary['max_deformation_norm_at_best_iteration'] = max_deformation_norm_at_best_iteration
                 wandb_run.summary['laplacian_smoothing_at_best_iteration'] = laplacian_smoothing_at_best_iteration
                 wandb_run.summary['normal_consistency_at_best_iteration'] = normal_consistency_at_best_iteration
 
