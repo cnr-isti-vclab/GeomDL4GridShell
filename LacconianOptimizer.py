@@ -22,16 +22,16 @@ class LacconianOptimizer:
 
         # Finding laplacian smoothing loss scaling factor according to input percentage.
         if with_laplacian_smooth:
-            self.laplacian_smoothing = LaplacianSmoothing(device=device)
+            self.laplacian_smoothing = LaplacianSmoothing(self.mesh, device, relative=True)
             if laplsmooth_loss_perc == -1:
                 self.laplsmooth_scaling_factor = 1
             else:
-                laplacian_smooth_0 = self.laplacian_smoothing(self.mesh)
+                laplacian_smooth_0 = self.laplacian_smoothing(self.mesh, relative=True)
                 self.laplsmooth_scaling_factor = laplsmooth_loss_perc * loss_0 / max(laplacian_smooth_0, eps)
 
         # Finding normal consistency loss scaling factor according to input percentage.
         if with_normal_consistency:
-            self.normal_consistency = NormalConsistency(self.mesh, device=device)
+            self.normal_consistency = NormalConsistency(self.mesh, device, relative=True)
             if normcons_loss_perc == -1:
                 self.normcons_scaling_factor = 1
             else:
@@ -75,12 +75,12 @@ class LacconianOptimizer:
             # Summing displacements to mesh vertices.
             self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices, :] += self.displacements
 
+            # VERTICES CHANGED: making on mesh loss-shared computations again.
+            self.mesh.make_on_mesh_shared_computations()
+
             # Keeping max vertex displacement norm per iteration.
             max_displacement_norm = torch.max(torch.norm(self.mesh.vertices - self.vertices_0, p=2, dim=1))
             log_dict['max_displacement_norm'] = max_displacement_norm
-
-            # Making on mesh loss-shared computations.
-            self.mesh.make_on_mesh_shared_computations()
 
             # Plotting/saving.
             if iteration % plot_save_interval == 0:
@@ -134,7 +134,7 @@ class LacconianOptimizer:
                 max_deformation_norm_at_best_iteration = max_deformation_norm
                 if hasattr(self, 'laplacian_smoothing'):
                     laplacian_smoothing_at_best_iteration = ls
-                if hasattr(self, 'laplacian_smoothing'):
+                if hasattr(self, 'normal_consistency'):
                     normal_consistency_at_best_iteration = nc
 
                 # CAUTION: we do not store best_mesh_faces as meshing do not change.

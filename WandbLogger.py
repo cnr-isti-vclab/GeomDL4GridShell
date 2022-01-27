@@ -19,8 +19,9 @@ LIST_OF_LISTS = [MESHES, LOSSES, LR, LAPLACIAN_PERC, NORMCONS_PERC]
 
 class WandbLogger:
     
-    def __init__(self, device, n_iter):
+    def __init__(self, device, project, n_iter):
         self.device = torch.device(device)
+        self.project = project
         self.n_iter = n_iter
 
         # Making Results directory.
@@ -62,7 +63,7 @@ class WandbLogger:
 
     def make_run(self, row):
         # Starting wandb run.
-        run = wandb.init(project='lacconian_logs', config=row, group=row['MESH'], entity='andfav', reinit=True)
+        run = wandb.init(project=self.project, config=row, group=row['MESH'], entity='andfav', reinit=True)
 
         # Setting run name.
         name = str(row['INDEX']) + ' - ' + row['MESH']
@@ -109,6 +110,6 @@ class WandbLogger:
 if __name__ == '__main__':
     parser = WandbLoggerOptions()
     options = parser.parse()
-    wandb_logger = WandbLogger(options.device, options.n_iter)
+    wandb_logger = WandbLogger(options.device, options.project, options.n_iter)
     wandb_logger.start()
 

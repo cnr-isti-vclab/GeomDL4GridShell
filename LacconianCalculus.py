@@ -18,7 +18,6 @@ class LacconianCalculus:
             raise ValueError('No reference mesh specified.')
             
         self.initialize_containers()
-        self.mesh.make_on_mesh_shared_computations()
         self.set_loads_and_beam_frames()
         self.beam_model_solve()
 

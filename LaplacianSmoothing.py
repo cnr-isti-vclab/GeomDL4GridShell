@@ -6,8 +6,18 @@ import torch
 
 class LaplacianSmoothing:
 
-    def __init__(self, device='cpu'):
+    def __init__(self, mesh, device, relative=False):
         self.device = torch.device(device)
+        self.mesh = mesh
+        self.relative = relative                            # If True, we compute a relative version of laplacian smoothing reg.
+
+        # Computing initial laplacian: computation rules are explained in __call__ method.
+        if self.relative:
+            L, inv_areas = self.cotan_matrix(mesh)
+            L_sum = torch.sparse.sum(L, dim=1).to_dense().view(-1,1)
+            norm_w = 0.25 * inv_areas
+        
+            self.mean_curvatures_0 = torch.norm((L.mm(mesh.vertices) - L_sum * mesh.vertices) * norm_w, p=2, dim=1)
 
     def __call__(self, mesh):
         '''
@@ -26,9 +36,14 @@ class LaplacianSmoothing:
                                                                 L_sum[i] * v_i
         1/(4*A[i]) are multiplied at the end (as norm_w).
         '''
-        loss = (L.mm(mesh.vertices) - L_sum * mesh.vertices) * norm_w
-        loss = torch.norm(loss, dim=1)
-        loss = torch.mean(loss)
+        mean_curvatures = torch.norm((L.mm(mesh.vertices) - L_sum * mesh.vertices) * norm_w, p=2, dim=1)
+
+        if self.relative == False:
+            loss = torch.mean(mean_curvatures)
+        else:
+            loss = torch.mean((mean_curvatures - self.mean_curvatures_0) / self.mean_curvatures_0)
+            print(loss)
+
         return loss
 
     def cotan_matrix(self, mesh):
