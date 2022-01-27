@@ -60,6 +60,7 @@ class Mesh:
         self.edges_per_face = self.edges_per_face.long().to(device)
         self.vertex_is_red = self.vertex_is_red.to(device)
         self.vertex_is_blue = self.vertex_is_blue.to(device)
+        self.make_on_mesh_shared_computations()
         # self.face_areas, self.face_normals = self.face_areas_normals(self.vertices, self.faces)
 
     def compute_edge_lengths_and_directions(self):
