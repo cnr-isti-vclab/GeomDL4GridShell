@@ -22,16 +22,16 @@ class LacconianOptimizer:
 
         # Finding laplacian smoothing loss scaling factor according to input percentage.
         if with_laplacian_smooth:
-            self.laplacian_smoothing = LaplacianSmoothing(self.mesh, device, relative=True)
+            self.laplacian_smoothing = LaplacianSmoothing(self.mesh, device)
             if laplsmooth_loss_perc == -1:
                 self.laplsmooth_scaling_factor = 1
             else:
-                laplacian_smooth_0 = self.laplacian_smoothing(self.mesh, relative=True)
+                laplacian_smooth_0 = self.laplacian_smoothing(self.mesh)
                 self.laplsmooth_scaling_factor = laplsmooth_loss_perc * loss_0 / max(laplacian_smooth_0, eps)
 
         # Finding normal consistency loss scaling factor according to input percentage.
         if with_normal_consistency:
-            self.normal_consistency = NormalConsistency(self.mesh, device, relative=True)
+            self.normal_consistency = NormalConsistency(self.mesh, device)
             if normcons_loss_perc == -1:
                 self.normcons_scaling_factor = 1
             else:

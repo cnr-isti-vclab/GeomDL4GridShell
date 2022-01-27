@@ -42,7 +42,6 @@ class LaplacianSmoothing:
             loss = torch.mean(mean_curvatures)
         else:
             loss = torch.mean((mean_curvatures - self.mean_curvatures_0) / self.mean_curvatures_0)
-            print(loss)
 
         return loss
 

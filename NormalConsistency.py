@@ -39,7 +39,6 @@ class NormalConsistency:
 
         if self.relative:
             loss = torch.mean((consistency - self.consistency_0) / self.consistency_0)
-            print(loss)
         else:
             loss = torch.mean(consistency)
 

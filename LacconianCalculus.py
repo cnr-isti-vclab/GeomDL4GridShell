@@ -30,6 +30,8 @@ class LacconianCalculus:
             return torch.sum(torch.norm(self.vertex_deformations[:, :3], p=2, dim=1))
         elif loss_type == 'mean_beam_energy':
             return torch.mean(self.beam_energy)
+        elif loss_type == 'no_axial_mean_beam_energy':
+            return torch.mean(self.beam_energy_without_axial)
 
     # Store beam properties involved in the task.
     # Custom properties are passed through a list whose elements follow this order:
@@ -265,12 +267,12 @@ class LacconianCalculus:
         # axes: 1=elementAxis; 2=EdgeNormal; 3=InPlaneAxis
         # output rows: [Axial_startNode; Shear2_startNode; Shear3_startNode; Torque_startNode; Bending3_startNode; Bending2_startNode;
         #                ...Axial_endNode; Shear2_endNode; Shear3_endNode; Torque_endNode; Bending3_endNode; Bending2_endNode]
-        self.beam_energy = self.mesh.edge_lengths/2 * ( mean_forces[:, 0]**2/(self.properties[1]*self.properties[2]) +
-                            self.properties[6] * mean_forces[:, 1]**2 / (self.properties[9] * self.properties[2]) +
-                            self.properties[6] * mean_forces[:, 2]**2 / (self.properties[9] * self.properties[2]) +
-                            mean_forces[:, 3]**2 / (self.properties[9] * self.properties[5]) +
-                            mean_forces[:, 4]**2 / (self.properties[1] * self.properties[4]) +
-                            mean_forces[:, 5]**2 / (self.properties[1] * self.properties[3]) )
+        self.beam_energy_without_axial = self.mesh.edge_lengths/2 * (self.properties[6] * mean_forces[:, 1]**2 / (self.properties[9] * self.properties[2]) +
+                                                                     self.properties[6] * mean_forces[:, 2]**2 / (self.properties[9] * self.properties[2]) +
+                                                                                          mean_forces[:, 3]**2 / (self.properties[9] * self.properties[5]) +
+                                                                                          mean_forces[:, 4]**2 / (self.properties[1] * self.properties[4]) +
+                                                                                          mean_forces[:, 5]**2 / (self.properties[1] * self.properties[3]) )
+        self.beam_energy = self.beam_energy_without_axial + self.mesh.edge_lengths/2 * mean_forces[:, 0]**2/(self.properties[1]*self.properties[2])
 
         # Freeing memory space.
         del edge_dofs_deformations, self.beam_forces_contributions
