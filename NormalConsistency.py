@@ -38,7 +38,7 @@ class NormalConsistency:
         consistency = 1 - torch.cosine_similarity(n0, n1, dim=1)
 
         if self.relative:
-            loss = torch.mean((consistency - self.consistency_0) / self.consistency_0)
+            loss = torch.mean(torch.abs((consistency - self.consistency_0) / self.consistency_0))
         else:
             loss = torch.mean(consistency)
 
