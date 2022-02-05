@@ -103,7 +103,7 @@ class LacconianOptimizer:
 
             # Keeping max stress deformation.
             max_deformation_norm = torch.max(torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1))
-            log_dict['max_deformation_norm'] = max_deformation_norm
+            log_dict['max_load_deformation_norm'] = max_deformation_norm
 
             # Laplacian smoothing.
             if hasattr(self, 'laplacian_smoothing'):
@@ -148,7 +148,7 @@ class LacconianOptimizer:
                 wandb_run.summary['best_iteration'] = best_iteration
                 wandb_run.summary['structural_loss_at_best_iteration'] = structural_loss_at_best_iteration
                 wandb_run.summary['max_displacement_norm_at_best_iteration'] = max_displacement_norm_at_best_iteration
-                wandb_run.summary['max_deformation_norm_at_best_iteration'] = max_deformation_norm_at_best_iteration
+                wandb_run.summary['max_load_deformation_norm_at_best_iteration'] = max_deformation_norm_at_best_iteration
                 wandb_run.summary['laplacian_smoothing_at_best_iteration'] = laplacian_smoothing_at_best_iteration
                 wandb_run.summary['normal_consistency_at_best_iteration'] = normal_consistency_at_best_iteration
 
