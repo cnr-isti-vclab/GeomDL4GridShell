@@ -11,19 +11,17 @@ class LacconianCalculus:
         self.beam_have_load = beam_have_load
 
         if file is not None:
-            self.mesh = Mesh(file, device=device)
+            self.initial_mesh = Mesh(file, device=device)
         elif mesh is not None:
-            self.mesh = mesh
+            self.initial_mesh = mesh
         else:
             raise ValueError('No reference mesh specified.')
             
         self.initialize_containers()
-        self.set_loads_and_beam_frames()
-        self.beam_model_solve()
+        self.beam_model_solve(self.initial_mesh)
 
-    def __call__(self, loss_type):
-        self.set_loads_and_beam_frames()
-        self.beam_model_solve()
+    def __call__(self, mesh, loss_type):
+        self.beam_model_solve(mesh)
 
         # Giving right loss corresponding with loss_type.
         if loss_type == 'norm_vertex_deformations':
@@ -62,13 +60,13 @@ class LacconianCalculus:
     # CAUTION: we are exploiting the fact our iterations preserve mesh connectivity.
     def initialize_containers(self):
         # Beam local frames container: (#edges, 3, 3) torch.tensor.
-        self.beam_frames = torch.zeros(self.mesh.edges.shape[0], 3, 3, device=self.device)
+        self.beam_frames = torch.zeros(self.initial_mesh.edges.shape[0], 3, 3, device=self.device)
 
         # Beam stiff matrices container: (#edges, 2*DOF, 2*DOF) torch.tensor.
-        self.beam_stiff_matrices = torch.zeros(self.mesh.edges.shape[0], 2*DOF, 2*DOF, device=self.device)
+        self.beam_stiff_matrices = torch.zeros(self.initial_mesh.edges.shape[0], 2*DOF, 2*DOF, device=self.device)
 
         # Per-vertex loads vector.
-        self.load = torch.zeros(self.mesh.vertices.shape[0] * DOF, device=self.device)
+        self.load = torch.zeros(self.initial_mesh.vertices.shape[0] * DOF, device=self.device)
 
         ###########################################################################################################
         # Storing augmented stiffmatrix non-zero indices.
@@ -77,11 +75,11 @@ class LacconianCalculus:
         ###########################################################################################################
         # Bulding bool tensor masks related to constraints.
         # Non-constrained vertex mask:
-        self.non_constrained_vertices = torch.logical_or(self.mesh.vertex_is_red, self.mesh.vertex_is_blue).logical_not()
+        self.non_constrained_vertices = torch.logical_or(self.initial_mesh.vertex_is_red, self.initial_mesh.vertex_is_blue).logical_not()
 
         # Red vertices refer to all dofs constrainess, blue vertices to just translation constrainess.
-        blue_dofs = torch.kron(self.mesh.vertex_is_blue, torch.tensor([True] * int(DOF/2) + [False] * int(DOF/2), device=self.device))
-        red_dofs = torch.kron(self.mesh.vertex_is_red, torch.tensor([True] * DOF, device=self.device))
+        blue_dofs = torch.kron(self.initial_mesh.vertex_is_blue, torch.tensor([True] * int(DOF/2) + [False] * int(DOF/2), device=self.device))
+        red_dofs = torch.kron(self.initial_mesh.vertex_is_red, torch.tensor([True] * DOF, device=self.device))
 
         # Non-constrained vertex dofs mask.
         self.dofs_non_constrained_mask = torch.logical_and(blue_dofs.logical_not(), red_dofs.logical_not())
@@ -90,8 +88,8 @@ class LacconianCalculus:
     # corresponding 6 * self.mesh.edges[:, 0].unsqueeze(-1) row element.
     # (...).unsqueeze(-1) expand (#edges, ) tensor to (#edges, 1) column tensor.
     def make_edge_endpoints_dofs_matrix(self):
-        endpts_0 = 6 * self.mesh.edges[:, 0].unsqueeze(-1) + torch.arange(DOF, device=self.device)
-        endpts_1 = 6 * self.mesh.edges[:, 1].unsqueeze(-1) + torch.arange(DOF, device=self.device)
+        endpts_0 = 6 * self.initial_mesh.edges[:, 0].unsqueeze(-1) + torch.arange(DOF, device=self.device)
+        endpts_1 = 6 * self.initial_mesh.edges[:, 1].unsqueeze(-1) + torch.arange(DOF, device=self.device)
         return torch.cat((endpts_0, endpts_1), dim=1) 
 
     # Builds augmented stiffmatrix non-zero element tensor according to vertex dofs.
@@ -105,43 +103,44 @@ class LacconianCalculus:
 
     # Stores load matrix and builds beam frames.
     # Load matrix (no. vertices x DOF) has row-structure (Fx, Fy, Fz, Mx, My, Mz) whose values are referred to global ref system.
-    def set_loads_and_beam_frames(self):
+    def set_loads_and_beam_frames(self, mesh):
         #####################################################################################################################################
         # Load computation.
         # Computing beam loads on each vertex: -1/2 * <beam volume> * <beam density> (beam load is equally parted to endpoints) along z-axis.
         # Some details: vec.scatter_add(0, idx, src) with vec, idx, src 1d tensors, add at vec positions specified
         # by idx corresponding src values.
         if self.beam_have_load:
-            beam_loads = torch.mul(self.mesh.edge_lengths, -1/2 * self.properties[2] * self.properties[8])
-            on_vertices_beam_loads = torch.zeros(self.mesh.vertices.shape[0], device=self.device)
-            on_vertices_beam_loads.scatter_add_(0, self.mesh.edges.flatten(), torch.stack([beam_loads] * 2, dim=1).flatten())
+            beam_loads = torch.mul(mesh.edge_lengths, -1/2 * self.properties[2] * self.properties[8])
+            on_vertices_beam_loads = torch.zeros(mesh.vertices.shape[0], device=self.device)
+            on_vertices_beam_loads.scatter_add_(0, mesh.edges.flatten(), torch.stack([beam_loads] * 2, dim=1).flatten())
 
         # Computing face loads on each vertex: -1/3 * <face areas> * <weight per surface unit> (face load is equally parted to vertices) along z.
         # Some details: vec.scatter_add(0, idx, src) with vec, idx, src 1d tensors, add at vec positions specified
         # by idx corresponding src values.
-        face_loads = torch.mul(self.mesh.face_areas, -1/3 * self.properties[7])
-        on_vertices_face_loads = torch.zeros(self.mesh.vertices.shape[0], device=self.device)
-        on_vertices_face_loads.scatter_add_(0, self.mesh.faces.flatten(), torch.stack([face_loads] * 3, dim=1).flatten())
+        face_loads = torch.mul(mesh.face_areas, -1/3 * self.properties[7])
+        on_vertices_face_loads = torch.zeros(mesh.vertices.shape[0], device=self.device)
+        on_vertices_face_loads.scatter_add_(0, mesh.faces.flatten(), torch.stack([face_loads] * 3, dim=1).flatten())
 
         # Summing beam and face components to compute per-vertex loads.
         if self.beam_have_load:
-            self.load[DOF*torch.arange(self.mesh.vertices.shape[0], device=self.device) + 2] = on_vertices_beam_loads + on_vertices_face_loads
+            self.load[DOF*torch.arange(mesh.vertices.shape[0], device=self.device) + 2] = on_vertices_beam_loads + on_vertices_face_loads
         else:
-            self.load[DOF*torch.arange(self.mesh.vertices.shape[0], device=self.device) + 2] = on_vertices_face_loads
+            self.load[DOF*torch.arange(mesh.vertices.shape[0], device=self.device) + 2] = on_vertices_face_loads
 
         #######################################################################################################################################
         # Beam frames computation.
-        self.beam_frames[:, 0, :] = self.mesh.edge_directions
-        self.beam_frames[:, 1, :] = self.mesh.edge_normals
-        self.beam_frames[:, 2, :] = torch.cross(self.mesh.edge_directions, self.mesh.edge_normals)
+        self.beam_frames[:, 0, :] = mesh.edge_directions
+        self.beam_frames[:, 1, :] = mesh.edge_normals
+        self.beam_frames[:, 2, :] = torch.cross(mesh.edge_directions, mesh.edge_normals)
 
     # Execute all stiffness and resistence computations.
-    def beam_model_solve(self):
-        self.build_stiff_matrix()
-        self.compute_stiff_deformation()
+    def beam_model_solve(self, mesh):
+        self.set_loads_and_beam_frames(mesh)
+        self.build_stiff_matrix(mesh)
+        self.compute_stiff_deformation(mesh)
 
     # Stiffness matrices in beam reference systems are computed and then aggregated to compound a global stiff matrix.
-    def build_stiff_matrix(self):
+    def build_stiff_matrix(self, mesh):
         ###########################################################################################################
         # Assembling beam-local stiff matrices whose have the following structure:
         #     k1 = properties.young * properties.cross_area / self.mesh.edge_lengths[edge_id]
@@ -167,12 +166,12 @@ class LacconianCalculus:
         #
 
         # Computing squares and cubes of beam_lenghts tensor.
-        squared_beam_lenghts = torch.pow(self.mesh.edge_lengths, 2)
-        cubed_beam_lenghts = torch.pow(self.mesh.edge_lengths, 3)
+        squared_beam_lenghts = torch.pow(mesh.edge_lengths, 2)
+        cubed_beam_lenghts = torch.pow(mesh.edge_lengths, 3)
 
         # Filling non empty entries in self.beam_stiff_matrices.
         # k1 and -k1
-        self.beam_stiff_matrices[:, 0, 0] = self.properties[1] * self.properties[2] / self.mesh.edge_lengths
+        self.beam_stiff_matrices[:, 0, 0] = self.properties[1] * self.properties[2] / mesh.edge_lengths
         self.beam_stiff_matrices[:, 6, 6] = self.beam_stiff_matrices[:, 0, 0]
         self.beam_stiff_matrices[:, 6, 0] = self.beam_stiff_matrices[:, 0, 6] = -self.beam_stiff_matrices[:, 0, 0]
         # k2 and -k2
@@ -195,15 +194,15 @@ class LacconianCalculus:
         self.beam_stiff_matrices[:, 4, 2] = self.beam_stiff_matrices[:, 10, 2] = -self.beam_stiff_matrices[:, 8, 4]
         self.beam_stiff_matrices[:, 2, 4] = self.beam_stiff_matrices[:, 2, 10] = -self.beam_stiff_matrices[:, 8, 4]
         # k6 and -k6
-        self.beam_stiff_matrices[:, 3, 3] = self.properties[9] * self.properties[5] / self.mesh.edge_lengths
+        self.beam_stiff_matrices[:, 3, 3] = self.properties[9] * self.properties[5] / mesh.edge_lengths
         self.beam_stiff_matrices[:, 9, 9] = self.beam_stiff_matrices[:, 3, 3]
         self.beam_stiff_matrices[:, 9, 3] = self.beam_stiff_matrices[:, 3, 9] = -self.beam_stiff_matrices[:, 3, 3]
         # k7 and multiples
-        k7 = self.properties[1] * self.properties[3] / self.mesh.edge_lengths
+        k7 = self.properties[1] * self.properties[3] / mesh.edge_lengths
         self.beam_stiff_matrices[:, 4, 4] = self.beam_stiff_matrices[:, 10, 10] = torch.mul(4, k7)
         self.beam_stiff_matrices[:, 10, 4] = self.beam_stiff_matrices[:, 4, 10] = torch.mul(2, k7)
         # k8 and multiples
-        k8 = self.properties[1] * self.properties[4] / self.mesh.edge_lengths
+        k8 = self.properties[1] * self.properties[4] / mesh.edge_lengths
         self.beam_stiff_matrices[:, 5, 5] = self.beam_stiff_matrices[:, 11, 11] = torch.mul(4, k8)
         self.beam_stiff_matrices[:, 11, 5] = self.beam_stiff_matrices[:, 5, 11] = torch.mul(2, k8)
 
@@ -225,7 +224,7 @@ class LacconianCalculus:
         # Building global stiff matrix by adding all beam contributions.
         # Global stiff matrix: (DOF*#vertices, DOF*#vertices), computed by densing an augmented sparse
         # (DOF*#vertices, DOF*#vertices), admitting several entries for the same ij coordinate couple.
-        size = (DOF * self.mesh.vertices.shape[0], DOF * self.mesh.vertices.shape[0])
+        size = (DOF * mesh.vertices.shape[0], DOF * mesh.vertices.shape[0])
         augmented_stiff_matrix = torch.sparse_coo_tensor(self.augmented_stiff_idx, beam_contributions.flatten(), size=size, device=self.device)
         self.stiff_matrix = augmented_stiff_matrix.to_dense()
 
@@ -233,9 +232,9 @@ class LacconianCalculus:
         del transition_matrices, beam_contributions, augmented_stiff_matrix, squared_beam_lenghts, cubed_beam_lenghts
 
     # Compute vertex deformations by solving a stiff-matrix-based linear system.
-    def compute_stiff_deformation(self):
+    def compute_stiff_deformation(self, mesh):
         # Solving reduced linear system and adding zeros in constrained dofs.
-        self.vertex_deformations = torch.zeros(len(self.mesh.vertices) * DOF, device=self.device)
+        self.vertex_deformations = torch.zeros(mesh.vertices.shape[0] * DOF, device=self.device)
         sys_sol = torch.linalg.solve(self.stiff_matrix[self.dofs_non_constrained_mask][:, self.dofs_non_constrained_mask], self.load[self.dofs_non_constrained_mask])
         self.vertex_deformations[self.dofs_non_constrained_mask] = sys_sol
 
@@ -243,13 +242,13 @@ class LacconianCalculus:
         del self.stiff_matrix, sys_sol
 
         # Computing beam resulting forces and energies.
-        self.compute_beam_force_and_energy()
+        self.compute_beam_force_and_energy(mesh)
 
         # Making deformation tensor by reshaping self.vertex_deformations.
-        self.vertex_deformations = self.vertex_deformations.view(self.mesh.vertices.shape[0], DOF)
+        self.vertex_deformations = self.vertex_deformations.view(mesh.vertices.shape[0], DOF)
 
     # Computing beam resulting forces and energies.
-    def compute_beam_force_and_energy(self):
+    def compute_beam_force_and_energy(self, mesh):
         # edge_dofs_deformations aggregates vertex_deformation in a edge-endpoints-wise manner: (#edges, 2*DOF) torch.tensor
         edge_dofs_deformations = self.vertex_deformations[self.endpoints_dofs_matrix]
 
@@ -267,18 +266,18 @@ class LacconianCalculus:
         # axes: 1=elementAxis; 2=EdgeNormal; 3=InPlaneAxis
         # output rows: [Axial_startNode; Shear2_startNode; Shear3_startNode; Torque_startNode; Bending3_startNode; Bending2_startNode;
         #                ...Axial_endNode; Shear2_endNode; Shear3_endNode; Torque_endNode; Bending3_endNode; Bending2_endNode]
-        self.beam_energy_without_axial = self.mesh.edge_lengths/2 * (self.properties[6] * mean_forces[:, 1]**2 / (self.properties[9] * self.properties[2]) +
-                                                                     self.properties[6] * mean_forces[:, 2]**2 / (self.properties[9] * self.properties[2]) +
-                                                                                          mean_forces[:, 3]**2 / (self.properties[9] * self.properties[5]) +
-                                                                                          mean_forces[:, 4]**2 / (self.properties[1] * self.properties[4]) +
-                                                                                          mean_forces[:, 5]**2 / (self.properties[1] * self.properties[3]) )
-        self.beam_energy = self.beam_energy_without_axial + self.mesh.edge_lengths/2 * mean_forces[:, 0]**2/(self.properties[1]*self.properties[2])
+        self.beam_energy_without_axial = mesh.edge_lengths/2 * (self.properties[6] * mean_forces[:, 1]**2 / (self.properties[9] * self.properties[2]) +
+                                                                self.properties[6] * mean_forces[:, 2]**2 / (self.properties[9] * self.properties[2]) +
+                                                                                     mean_forces[:, 3]**2 / (self.properties[9] * self.properties[5]) +
+                                                                                     mean_forces[:, 4]**2 / (self.properties[1] * self.properties[4]) +
+                                                                                     mean_forces[:, 5]**2 / (self.properties[1] * self.properties[3]) )
+        self.beam_energy = self.beam_energy_without_axial + mesh.edge_lengths/2 * mean_forces[:, 0]**2/(self.properties[1]*self.properties[2])
 
         # Freeing memory space.
         del edge_dofs_deformations, self.beam_forces_contributions
 
-    def clean_attributes(self):
-        self.mesh.vertices.detach_()
+    def clean_attributes(self, mesh):
+        mesh.vertices.detach_()
         self.load.detach_()
         self.beam_frames.detach_()
         self.beam_stiff_matrices.detach_()
@@ -290,13 +289,18 @@ class LacconianCalculus:
             raise RuntimeError("self.beam_model_solve() method not called yet.")
 
         # Updating mesh vertices.
-        self.mesh.update_verts(self.mesh.vertices + self.vertex_deformations[:, :int(DOF/2)])
+        self.initial_mesh.update_verts(self.initial_mesh.vertices + self.vertex_deformations[:, :int(DOF/2)])
 
-    # Show displaced mesh via meshplot.
-    def plot_grid_shell(self):
+    # Show displaced mesh via polyscope.
+    def plot_grid_shell(self, mesh):
         colors = torch.norm(self.vertex_deformations[:, :3], p=2, dim=1)
-        self.mesh.plot_mesh(colors)
+        mesh.plot_mesh(colors)
 
-# lc = LacconianCalculus(file='meshes/Shell.ply', device='cpu')
-# lc.displace_mesh()
-# lc.plot_grid_shell()
+
+
+#############################################################################################################
+#  TEST LacconianCalculus.py ###
+if __name__ == '__main__':
+    lc = LacconianCalculus(file='meshes/go.ply', device='cpu')
+    lc.displace_mesh()
+    lc.plot_grid_shell(lc.initial_mesh)

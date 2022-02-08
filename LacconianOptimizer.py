@@ -16,7 +16,7 @@ class LacconianOptimizer:
         self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.mesh, beam_have_load=beam_have_load)
 
         # Taking useful initial data.
-        loss_0 = self.lacconian_calculus(self.loss_type)
+        loss_0 = self.lacconian_calculus(self.mesh, self.loss_type)
         self.vertices_0 = torch.clone(self.mesh.vertices)
         eps = 1e-3
 
@@ -35,7 +35,7 @@ class LacconianOptimizer:
             if normcons_loss_perc == -1:
                 self.normcons_scaling_factor = 1
             else:
-                normal_consistency_0 = self.normal_consistency()
+                normal_consistency_0 = self.normal_consistency(self.mesh)
                 self.normcons_scaling_factor = normcons_loss_perc * loss_0 / max(normal_consistency_0, eps)
 
         self.device = torch.device(device)
@@ -57,7 +57,8 @@ class LacconianOptimizer:
             self.displacements = torch.zeros(len(self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3, device=self.device, requires_grad=True)
 
         # Building optimizer.
-        self.optimizer = torch.optim.Adam([ self.displacements ], lr=lr)
+        # self.optimizer = torch.optim.Adam([ self.displacements ], lr=lr)
+        self.optimizer = torch.optim.SGD([ self.displacements ], lr=lr, momentum=0)
 
     def start(self, n_iter, plot, save, plot_save_interval, display_interval, save_label, take_times, save_prefix='', wandb_run=None):
         # Initializing best loss.
@@ -97,7 +98,7 @@ class LacconianOptimizer:
             loss = 0
 
             # Lacconian loss.
-            structural_loss = self.lacconian_calculus(self.loss_type)
+            structural_loss = self.lacconian_calculus(self.mesh, self.loss_type)
             loss += structural_loss
             log_dict['structural_loss'] = structural_loss
 
@@ -113,7 +114,7 @@ class LacconianOptimizer:
 
             # Normal consistency.
             if hasattr(self, 'normal_consistency'):
-                nc = self.normal_consistency()
+                nc = self.normal_consistency(self.mesh)
                 log_dict['normal_consistency'] = nc
                 loss += self.normcons_scaling_factor * nc
 
@@ -158,8 +159,8 @@ class LacconianOptimizer:
             back_end = time.time()
             self.optimizer.step()
 
-            # Deleting grad history in all re-usable attributes.
-            self.lacconian_calculus.clean_attributes()
+            # Deleting grad history in involved tensors (mesh.vertices and LacconianCalculus containers).
+            self.lacconian_calculus.clean_attributes(self.mesh)
 
             iter_end = time.time()
 

@@ -8,7 +8,6 @@ class LaplacianSmoothing:
 
     def __init__(self, mesh, device, relative=False):
         self.device = torch.device(device)
-        self.mesh = mesh
         self.relative = relative                            # If True, we compute a relative version of laplacian smoothing reg.
 
         # Computing initial laplacian: computation rules are explained in __call__ method.
