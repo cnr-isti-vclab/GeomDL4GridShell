@@ -6,13 +6,14 @@ import torch
 from LacconianOptimizer import LacconianOptimizer
 from options.logger_options import WandbLoggerOptions
 
-PARAMS = ['INDEX', 'MESH', 'LOSS', 'LR', 'LAPLACIAN_PERC', 'NORMCONS_PERC']
+PARAMS = ['INDEX', 'MESH', 'LOSS', 'LR', 'LAPLACIAN_PERC', 'NORMCONS_PERC', 'VARAREA_PERC']
 
 MESHES = ['sphericalCup.ply', 'geodesic.ply']
 LOSSES = ['mean_beam_energy']
 LR = [1e-8, 1e-7, 1e-6]
 LAPLACIAN_PERC = [0.1, 0.8]
 NORMCONS_PERC = [0.1, 0.2, 0.8]
+VARAREA_PERC = [0, 0.1]
 
 LIST_OF_LISTS = [MESHES, LOSSES, LR, LAPLACIAN_PERC, NORMCONS_PERC]
 
@@ -73,10 +74,11 @@ class WandbLogger:
         # Defining metrics.
         wandb.define_metric('loss', summary='min')                      # Total loss, i.e. sum of all components.
         wandb.define_metric('structural_loss', summary='min')           # Structural loss component, specificed in row['LOSS'].
-        wandb.define_metric('max_displacement_norm', summary='min')     # Max norm of vertex displacements from original mesh.
+        wandb.define_metric('max_displacement_norm', summary='max')     # Max norm of vertex displacements from original mesh.
         wandb.define_metric('max_load_deformation_norm', summary='min') # Max norm of vertex load deformations.
         wandb.define_metric('laplacian_smoothing', summary='min')       # Laplacian smoothing loss component.
         wandb.define_metric('normal_consistency', summary='min')        # Normal consistency loss component.
+        wandb.define_metric('var_face_areas', summary='min')            # Face area variance loss component.
 
         # Making current run mesh directory.
         path = 'Results/Meshes/' + str(row['INDEX'])
@@ -91,8 +93,10 @@ class WandbLogger:
         loss_type = row['LOSS']                                 # Which structural loss is computed.
         with_laplacian_smooth = True                            # If laplacian regularization is employed or not.
         with_normal_consistency = True                          # If normal consistency regularization is employed or not.
+        with_var_face_areas = True                              # If face area variance regularization is employed or not.
         laplsmooth_loss_perc = row['LAPLACIAN_PERC']            # Laplacian regularization percentual on structural loss.
         normcons_loss_perc = row['NORMCONS_PERC']               # Normal consistency regularization percentual on structural loss.
+        varfaceareas_loss_perc = row['VARAREA_PERC']            # Face area variance regularization percentual on structural loss.
         n_iter = self.n_iter                                    # Number of iterations per experiment.
         plot = False                                            # If we want to show meshes during iterations or not.
         save = True                                             # If we want to save meshes during iterations or not.
@@ -102,7 +106,7 @@ class WandbLogger:
         take_times = False                                      # If we want to see iteration and backward times or not.
         save_prefix = path + '/'                                # Path of current run saves.
 
-        optimizer = LacconianOptimizer(source_path, lr, self.device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, laplsmooth_loss_perc, normcons_loss_perc)
+        optimizer = LacconianOptimizer(source_path, lr, self.device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, with_var_face_areas, laplsmooth_loss_perc, normcons_loss_perc, varfaceareas_loss_perc)
         print('Optimizing (run ' + str(row['INDEX']+1) + ' of ' + str(self.no_experiments) + ' ) ...')
         optimizer.start(n_iter, plot, save, plot_save_interval, display_interval, save_label, take_times, save_prefix=save_prefix, wandb_run=run)
         

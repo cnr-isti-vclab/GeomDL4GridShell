@@ -10,7 +10,7 @@ from utils import save_mesh
 
 class LacconianOptimizer:
 
-    def __init__(self, file, lr, device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, laplsmooth_loss_perc, normcons_loss_perc):
+    def __init__(self, file, lr, device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, with_var_face_areas, laplsmooth_loss_perc, normcons_loss_perc, varfaceareas_loss_perc):
         self.mesh = Mesh(file=file, device=device)
         self.loss_type = loss_type
         self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.mesh, beam_have_load=beam_have_load)
@@ -37,6 +37,14 @@ class LacconianOptimizer:
             else:
                 normal_consistency_0 = self.normal_consistency(self.mesh)
                 self.normcons_scaling_factor = normcons_loss_perc * loss_0 / max(normal_consistency_0, eps)
+
+        # Finding var face areas scaling factor according to input percentage.
+        if with_var_face_areas:
+            if varfaceareas_loss_perc == -1:
+                self.varareas_scaling_factor = 1
+            else:
+                var_areas_0 = torch.var(self.mesh.face_areas)
+                self.varareas_scaling_factor = varfaceareas_loss_perc * loss_0 / max(var_areas_0, eps)
 
         self.device = torch.device(device)
 
@@ -119,6 +127,12 @@ class LacconianOptimizer:
                 log_dict['normal_consistency'] = nc
                 loss += self.normcons_scaling_factor * nc
 
+            # Face area variance.
+            if hasattr(self, 'varareas_scaling_factor'):
+                var_areas = torch.var(self.mesh.face_areas)
+                log_dict['var_face_areas'] = var_areas
+                loss += self.varareas_scaling_factor * var_areas
+
             log_dict['loss'] = loss
 
             # Displaying loss if requested.
@@ -138,6 +152,8 @@ class LacconianOptimizer:
                     laplacian_smoothing_at_best_iteration = ls
                 if hasattr(self, 'normal_consistency'):
                     normal_consistency_at_best_iteration = nc
+                if hasattr(self, 'varareas_scaling_factor'):
+                    var_face_areas_at_best_iteration = var_areas
 
                 # CAUTION: we do not store best_mesh_faces as meshing do not change.
                 if save:
@@ -153,6 +169,7 @@ class LacconianOptimizer:
                 wandb_run.summary['max_load_deformation_norm_at_best_iteration'] = max_deformation_norm_at_best_iteration
                 wandb_run.summary['laplacian_smoothing_at_best_iteration'] = laplacian_smoothing_at_best_iteration
                 wandb_run.summary['normal_consistency_at_best_iteration'] = normal_consistency_at_best_iteration
+                wandb_run.summary['var_face_areas_at_best_iteration'] = var_face_areas_at_best_iteration
 
             # Computing gradients and updating optimizer
             back_start = time.time()
@@ -183,5 +200,5 @@ class LacconianOptimizer:
 if __name__ == '__main__':
     parser = OptimizerOptions()
     options = parser.parse()
-    lo = LacconianOptimizer(options.path, options.lr, options.device, options.init_mode, options.beam_have_load, options.loss_type, options.with_laplacian_smooth, options.with_normal_consistency, options.laplsmooth_loss_perc, options.normcons_loss_perc)
+    lo = LacconianOptimizer(options.path, options.lr, options.device, options.init_mode, options.beam_have_load, options.loss_type, options.with_laplacian_smooth, options.with_normal_consistency, options.with_var_face_areas, options.laplsmooth_loss_perc, options.normcons_loss_perc, options.varfaceareas_loss_perc)
     lo.start(options.n_iter, options.plot, options.save, options.plot_save_interval, options.display_interval, options.save_label, options.take_times)
