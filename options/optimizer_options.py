@@ -19,9 +19,11 @@ class OptimizerOptions:
         self.parser.add_argument('--beamload', dest='beam_have_load', action='store_true', default=False, help='If beams give load to verts or not')
         self.parser.add_argument('--itertimes', dest='take_times', action='store_true', default=False, help='If iteration and backward times are required or not')
         self.parser.add_argument('--laplaciansmooth', dest='with_laplacian_smooth', action='store_true', default=False, help='If laplacian mesh smoothing is requested or not')
-        self.parser.add_argument('--normalconsistency', dest='with_normal_consistency', action='store_true', default=False, help='If mesh normal consistency lis requested or not')
+        self.parser.add_argument('--normalconsistency', dest='with_normal_consistency', action='store_true', default=False, help='If mesh normal consistency is requested or not')
+        self.parser.add_argument('--varfaceareas', dest='with_var_face_areas', action='store_true', default=False, help='If face area variance minimizing is requested or not')
         self.parser.add_argument('--laplsmoothlossperc', dest='laplsmooth_loss_perc', type=float, default=-1, help='laplacian smoothing percentual weight w.r.t. lacconian loss')
         self.parser.add_argument('--normconslossperc', dest='normcons_loss_perc', type=float, default=-1, help='normal consistency percentual weight w.r.t. lacconian loss')
+        self.parser.add_argument('--varfaceareaslossperc', dest='varfaceareas_loss_perc', type=float, default=-1, help='face area variance percentual weight w.r.t. lacconian loss')
 
     def parse(self):
         return self.parser.parse_args()
