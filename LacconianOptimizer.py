@@ -64,7 +64,8 @@ class LacconianOptimizer:
         # Initializing best loss.
         best_loss = torch.tensor(float('inf'), device=self.device)
 
-        for iteration in range(n_iter):
+        current_iteration = 0
+        while current_iteration < n_iter:
             iter_start = time.time()
 
             # Putting grads to None.
@@ -84,13 +85,13 @@ class LacconianOptimizer:
             log_dict['max_displacement_norm'] = max_displacement_norm
 
             # Plotting/saving.
-            if iteration % plot_save_interval == 0:
+            if current_iteration % plot_save_interval == 0:
                 if plot:
                     colors = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
                     self.mesh.plot_mesh(colors=colors)
 
                 if save:
-                    filename = save_prefix + save_label + '_' + str(iteration) + '.ply'
+                    filename = save_prefix + save_label + '_' + str(current_iteration) + '.ply'
                     quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
                     save_mesh(self.mesh.vertices, self.mesh.faces, self.mesh.vertex_is_red, self.mesh.vertex_is_blue, filename, v_quality=quality.unsqueeze(1))
 
@@ -98,7 +99,7 @@ class LacconianOptimizer:
             loss = 0
 
             # Lacconian loss.
-            structural_loss = self.lacconian_calculus(self.mesh, self.loss_type)
+            structural_loss = self.lacconian_calculus(self.mesh, self.loss_type) + 0*torch.var(self.mesh.face_areas)
             loss += structural_loss
             log_dict['structural_loss'] = structural_loss
 
@@ -121,13 +122,13 @@ class LacconianOptimizer:
             log_dict['loss'] = loss
 
             # Displaying loss if requested.
-            if display_interval != -1 and iteration % display_interval == 0:
-                print('*********** Iteration: ', iteration, ' Loss: ', loss, '***********')
+            if display_interval != -1 and current_iteration % display_interval == 0:
+                print('*********** Iteration: ', current_iteration, ' Loss: ', loss, '***********')
 
             # Keeping data if loss is best.
             if loss < best_loss:
                 best_loss = loss
-                best_iteration = iteration
+                best_iteration = current_iteration
 
                 # Saving losses at best iteration.
                 structural_loss_at_best_iteration = structural_loss
@@ -161,6 +162,11 @@ class LacconianOptimizer:
 
             # Deleting grad history in involved tensors (mesh.vertices and LacconianCalculus containers).
             self.lacconian_calculus.clean_attributes(self.mesh)
+
+            # Incrementing iteration_counter; we want to do 100 more iterations if last iteration is best.
+            current_iteration += 1
+            if best_iteration == n_iter-1:
+                n_iter += 100
 
             iter_end = time.time()
 
