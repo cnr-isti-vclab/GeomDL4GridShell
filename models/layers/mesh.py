@@ -12,7 +12,7 @@ import numpy as np
 # from queue import Queue
 from utils import load_mesh, plot_mesh, edge_connectivity
 from torch.nn.functional import normalize
-# import copy
+import copy
 # from pathlib import Path
 # import pickle
 # from pytorch3d.ops.knn import knn_gather, knn_points
@@ -118,9 +118,12 @@ class Mesh:
     def update_verts(self, verts):
         """
         update verts positions only, same connectivity
-        :param verts: new verts
         """
-        self.vertices = verts
+        new_mesh = copy.deepcopy(self)
+        new_mesh.vertices += verts
+        new_mesh.make_on_mesh_shared_computations()
+        
+        return new_mesh
 
     def plot_mesh(self, colors=None):
         vertices = self.vertices.detach()
