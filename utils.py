@@ -20,21 +20,21 @@ def load_mesh(path):
    
     return vertices, faces, vertex_is_red, vertex_is_blue
 
-def save_mesh(vertices, faces, vertex_is_red, vertex_is_blue, filename, v_quality=np.array([], dtype=np.float64)):
+def save_mesh(mesh, filename, v_quality=np.array([], dtype=np.float64)):
     # Changing torch.tensors to np.arrays.
-    vertices = np.float64(vertices.detach().cpu().numpy())
-    faces = faces.detach().cpu().numpy()
+    vertices = np.float64(mesh.vertices.detach().cpu().numpy())
+    faces = mesh.faces.detach().cpu().numpy()
     if type(v_quality) is torch.Tensor:
         v_quality = np.float64(v_quality.detach().cpu().numpy())
 
     # Creating vertex_color_matrix from vertex_is_red, vertex_is_blue.
     colors = np.zeros((vertices.shape[0], 4))
-    for idx, red_vertex in enumerate(vertex_is_red):
+    for idx, red_vertex in enumerate(mesh.vertex_is_red):
         if red_vertex:
             colors[idx, :] = np.array([1., 0., 0., 1.])
         else:
             colors[idx, :] = np.array([0.75294118, 0.75294118, 0.75294118, 1])
-    for idx, blue_vertex in enumerate(vertex_is_blue):
+    for idx, blue_vertex in enumerate(mesh.vertex_is_blue):
         if blue_vertex:
             colors[idx, :] = np.array([0., 0., 1., 1.])
 

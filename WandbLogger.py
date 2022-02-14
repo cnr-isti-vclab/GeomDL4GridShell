@@ -6,11 +6,12 @@ import torch
 from LacconianOptimizer import LacconianOptimizer
 from options.logger_options import WandbLoggerOptions
 
-PARAMS = ['INDEX', 'MESH', 'LOSS', 'LR', 'LAPLACIAN_PERC', 'NORMCONS_PERC', 'VARAREA_PERC']
+PARAMS = ['INDEX', 'MESH', 'LOSS', 'LR', 'MOMENTUM','LAPLACIAN_PERC', 'NORMCONS_PERC', 'VARAREA_PERC']
 
 MESHES = ['sphericalCup.ply', 'geodesic.ply']
 LOSSES = ['mean_beam_energy']
 LR = [1e-8, 1e-7, 1e-6]
+MOMENTUM = [0.9]
 LAPLACIAN_PERC = [0.1, 0.8]
 NORMCONS_PERC = [0.1, 0.2, 0.8]
 VARAREA_PERC = [0, 0.1]
@@ -88,6 +89,7 @@ class WandbLogger:
         # Optimizer settings.
         source_path = 'meshes/' + row['MESH']                   # Source mesh path.
         lr = row['LR']                                          # Optimizer learning rate.
+        momentum = row['MOMENTUM']                              # Optimizer momentum.
         init_mode = 'zeros'                                     # Optimizer initialization mode.
         beam_have_load = True                                   # If beam load is computed or not.
         loss_type = row['LOSS']                                 # Which structural loss is computed.
@@ -106,7 +108,7 @@ class WandbLogger:
         take_times = False                                      # If we want to see iteration and backward times or not.
         save_prefix = path + '/'                                # Path of current run saves.
 
-        optimizer = LacconianOptimizer(source_path, lr, self.device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, with_var_face_areas, laplsmooth_loss_perc, normcons_loss_perc, varfaceareas_loss_perc)
+        optimizer = LacconianOptimizer(source_path, lr, momentum, self.device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, with_var_face_areas, laplsmooth_loss_perc, normcons_loss_perc, varfaceareas_loss_perc)
         print('Optimizing (run ' + str(row['INDEX']+1) + ' of ' + str(self.no_experiments) + ' ) ...')
         optimizer.start(n_iter, plot, save, plot_save_interval, display_interval, save_label, take_times, save_prefix=save_prefix, wandb_run=run)
         

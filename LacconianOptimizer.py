@@ -10,32 +10,34 @@ from utils import save_mesh
 
 class LacconianOptimizer:
 
-    def __init__(self, file, lr, device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, with_var_face_areas, laplsmooth_loss_perc, normcons_loss_perc, varfaceareas_loss_perc):
-        self.mesh = Mesh(file=file, device=device)
+    def __init__(self, file, lr, momentum, device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, with_var_face_areas, laplsmooth_loss_perc, normcons_loss_perc, varfaceareas_loss_perc):
+        self.initial_mesh = Mesh(file=file, device=device)
         self.loss_type = loss_type
-        self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.mesh, beam_have_load=beam_have_load)
+        self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.initial_mesh, beam_have_load=beam_have_load)
 
         # Taking useful initial data.
-        loss_0 = self.lacconian_calculus(self.mesh, self.loss_type)
-        self.vertices_0 = torch.clone(self.mesh.vertices)
+        loss_0 = self.lacconian_calculus(self.initial_mesh, self.loss_type)
         eps = 1e-3
+
+        # Setting 10 decimal digits tensor display.
+        torch.set_printoptions(precision=10)
 
         # Finding laplacian smoothing loss scaling factor according to input percentage.
         if with_laplacian_smooth:
-            self.laplacian_smoothing = LaplacianSmoothing(self.mesh, device)
+            self.laplacian_smoothing = LaplacianSmoothing(self.initial_mesh, device)
             if laplsmooth_loss_perc == -1:
                 self.laplsmooth_scaling_factor = 1
             else:
-                laplacian_smooth_0 = self.laplacian_smoothing(self.mesh)
+                laplacian_smooth_0 = self.laplacian_smoothing(self.initial_mesh)
                 self.laplsmooth_scaling_factor = laplsmooth_loss_perc * loss_0 / max(laplacian_smooth_0, eps)
 
         # Finding normal consistency loss scaling factor according to input percentage.
         if with_normal_consistency:
-            self.normal_consistency = NormalConsistency(self.mesh, device)
+            self.normal_consistency = NormalConsistency(self.initial_mesh, device)
             if normcons_loss_perc == -1:
                 self.normcons_scaling_factor = 1
             else:
-                normal_consistency_0 = self.normal_consistency(self.mesh)
+                normal_consistency_0 = self.normal_consistency(self.initial_mesh)
                 self.normcons_scaling_factor = normcons_loss_perc * loss_0 / max(normal_consistency_0, eps)
 
         # Finding var face areas scaling factor according to input percentage.
@@ -43,7 +45,7 @@ class LacconianOptimizer:
             if varfaceareas_loss_perc == -1:
                 self.varareas_scaling_factor = 1
             else:
-                var_areas_0 = torch.var(self.mesh.face_areas)
+                var_areas_0 = torch.var(self.initial_mesh.face_areas)
                 self.varareas_scaling_factor = varfaceareas_loss_perc * loss_0 / max(var_areas_0, eps)
 
         self.device = torch.device(device)
@@ -54,26 +56,26 @@ class LacconianOptimizer:
             self.displacements = -self.lc.vertex_deformations[self.lc.non_constrained_vertices, :3]
             self.displacements.requires_grad = True
         elif init_mode == 'uniform':
-            self.displacements = torch.distributions.Uniform(0,1e-6).sample((len(self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
+            self.displacements = torch.distributions.Uniform(0,1e-6).sample((len(self.initial_mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
             self.displacements = self.displacements.to(device)
             self.displacements.requires_grad = True
         elif init_mode == 'normal':
-            self.displacements = torch.distributions.Normal(0,1e-6).sample((len(self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
+            self.displacements = torch.distributions.Normal(0,1e-6).sample((len(self.initial_mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
             self.displacements = self.displacements.to(device)
             self.displacements.requires_grad = True
         elif init_mode == 'zeros':
-            self.displacements = torch.zeros(len(self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3, device=self.device, requires_grad=True)
+            self.displacements = torch.zeros(len(self.initial_mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3, device=self.device, requires_grad=True)
 
         # Building optimizer.
         # self.optimizer = torch.optim.Adam([ self.displacements ], lr=lr)
-        self.optimizer = torch.optim.SGD([ self.displacements ], lr=lr, momentum=0)
+        self.optimizer = torch.optim.SGD([ self.displacements ], lr=lr, momentum=momentum)
 
     def start(self, n_iter, plot, save, plot_save_interval, display_interval, save_label, take_times, save_prefix='', wandb_run=None):
         # Initializing best loss.
         best_loss = torch.tensor(float('inf'), device=self.device)
 
         current_iteration = 0
-        while current_iteration < n_iter:
+        for current_iteration in range(n_iter):
             iter_start = time.time()
 
             # Putting grads to None.
@@ -82,32 +84,31 @@ class LacconianOptimizer:
             # Initializing wandb log dictionary.
             log_dict = {}
 
-            # Summing displacements to mesh vertices.
-            self.mesh.vertices[self.lacconian_calculus.non_constrained_vertices, :] += self.displacements
-
-            # VERTICES CHANGED: making on mesh loss-shared computations again.
-            self.mesh.make_on_mesh_shared_computations()
+            # Generating current iteration displaced mesh.
+            offset = torch.zeros(self.initial_mesh.vertices.shape, device=self.device)
+            offset[self.lacconian_calculus.non_constrained_vertices, :] = self.displacements
+            iteration_mesh = self.initial_mesh.update_verts(offset)
 
             # Keeping max vertex displacement norm per iteration.
-            max_displacement_norm = torch.max(torch.norm(self.mesh.vertices - self.vertices_0, p=2, dim=1))
+            max_displacement_norm = torch.max(torch.norm(offset, p=2, dim=1))
             log_dict['max_displacement_norm'] = max_displacement_norm
 
             # Plotting/saving.
             if current_iteration % plot_save_interval == 0:
                 if plot:
                     colors = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
-                    self.mesh.plot_mesh(colors=colors)
+                    iteration_mesh.plot_mesh(colors=colors)
 
                 if save:
                     filename = save_prefix + save_label + '_' + str(current_iteration) + '.ply'
                     quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
-                    save_mesh(self.mesh.vertices, self.mesh.faces, self.mesh.vertex_is_red, self.mesh.vertex_is_blue, filename, v_quality=quality.unsqueeze(1))
+                    save_mesh(iteration_mesh, filename, v_quality=quality.unsqueeze(1))
 
             # Computing loss by summing components.
             loss = 0
 
             # Lacconian loss.
-            structural_loss = self.lacconian_calculus(self.mesh, self.loss_type) + 0*torch.var(self.mesh.face_areas)
+            structural_loss = self.lacconian_calculus(iteration_mesh, self.loss_type)
             loss += structural_loss
             log_dict['structural_loss'] = structural_loss
 
@@ -117,19 +118,19 @@ class LacconianOptimizer:
 
             # Laplacian smoothing.
             if hasattr(self, 'laplacian_smoothing'):
-                ls = self.laplacian_smoothing(self.mesh)
+                ls = self.laplacian_smoothing(iteration_mesh)
                 log_dict['laplacian_smoothing'] = ls
                 loss += self.laplsmooth_scaling_factor * ls
 
             # Normal consistency.
             if hasattr(self, 'normal_consistency'):
-                nc = self.normal_consistency(self.mesh)
+                nc = self.normal_consistency(iteration_mesh)
                 log_dict['normal_consistency'] = nc
                 loss += self.normcons_scaling_factor * nc
 
             # Face area variance.
             if hasattr(self, 'varareas_scaling_factor'):
-                var_areas = torch.var(self.mesh.face_areas)
+                var_areas = torch.var(iteration_mesh.face_areas)
                 log_dict['var_face_areas'] = var_areas
                 loss += self.varareas_scaling_factor * var_areas
 
@@ -157,7 +158,7 @@ class LacconianOptimizer:
 
                 # CAUTION: we do not store best_mesh_faces as meshing do not change.
                 if save:
-                    best_mesh_vertices = torch.clone(self.mesh.vertices)
+                    best_mesh = iteration_mesh
                     best_quality = quality
 
             # Logging on wandb, if requested.
@@ -177,13 +178,8 @@ class LacconianOptimizer:
             back_end = time.time()
             self.optimizer.step()
 
-            # Deleting grad history in involved tensors (mesh.vertices and LacconianCalculus containers).
-            self.lacconian_calculus.clean_attributes(self.mesh)
-
-            # Incrementing iteration_counter; we want to do 100 more iterations if last iteration is best.
-            current_iteration += 1
-            if best_iteration == n_iter-1:
-                n_iter += 100
+            # Deleting grad history in involved tensors.
+            self.lacconian_calculus.clean_attributes()
 
             iter_end = time.time()
 
@@ -195,10 +191,10 @@ class LacconianOptimizer:
         # Saving best mesh, if mesh saving is enabled.
         if save and n_iter > 0:
             filename = save_prefix + '[BEST]' + save_label + '_' + str(best_iteration) + '.ply'
-            save_mesh(best_mesh_vertices, self.mesh.faces, self.mesh.vertex_is_red, self.mesh.vertex_is_blue, filename, v_quality=best_quality.unsqueeze(1))
+            save_mesh(best_mesh, filename, v_quality=best_quality.unsqueeze(1))
 
 if __name__ == '__main__':
     parser = OptimizerOptions()
     options = parser.parse()
-    lo = LacconianOptimizer(options.path, options.lr, options.device, options.init_mode, options.beam_have_load, options.loss_type, options.with_laplacian_smooth, options.with_normal_consistency, options.with_var_face_areas, options.laplsmooth_loss_perc, options.normcons_loss_perc, options.varfaceareas_loss_perc)
+    lo = LacconianOptimizer(options.path, options.lr, options.momentum, options.device, options.init_mode, options.beam_have_load, options.loss_type, options.with_laplacian_smooth, options.with_normal_consistency, options.with_var_face_areas, options.laplsmooth_loss_perc, options.normcons_loss_perc, options.varfaceareas_loss_perc)
     lo.start(options.n_iter, options.plot, options.save, options.plot_save_interval, options.display_interval, options.save_label, options.take_times)

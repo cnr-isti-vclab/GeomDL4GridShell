@@ -276,20 +276,21 @@ class LacconianCalculus:
         # Freeing memory space.
         del edge_dofs_deformations, self.beam_forces_contributions
 
-    def clean_attributes(self, mesh):
-        mesh.vertices.detach_()
+    def clean_attributes(self):
         self.load.detach_()
         self.beam_frames.detach_()
         self.beam_stiff_matrices.detach_()
         
     # Displace initial mesh with self.beam_model_solve() computed translations.
-    def displace_mesh(self):
+    def stress_mesh(self):
         # REQUIRES: self.beam_model_solve() has to be called before executing this.
         if not hasattr(self, 'vertex_deformations'):
             raise RuntimeError("self.beam_model_solve() method not called yet.")
 
         # Updating mesh vertices.
-        self.initial_mesh.update_verts(self.initial_mesh.vertices + self.vertex_deformations[:, :int(DOF/2)])
+        stressed_mesh = self.initial_mesh.update_verts(self.initial_mesh.vertices + self.vertex_deformations[:, :int(DOF/2)])
+
+        return stressed_mesh
 
     # Show displaced mesh via polyscope.
     def plot_grid_shell(self, mesh):
@@ -302,5 +303,5 @@ class LacconianCalculus:
 #  TEST LacconianCalculus.py ###
 if __name__ == '__main__':
     lc = LacconianCalculus(file='meshes/go.ply', device='cpu')
-    lc.displace_mesh()
-    lc.plot_grid_shell(lc.initial_mesh)
+    stressed_mesh = lc.stress_mesh()
+    lc.plot_grid_shell(stressed_mesh)
