@@ -1,5 +1,6 @@
 import torch
 from models.layers.mesh import Mesh
+from utils import save_mesh
 
 DOF = 6     # degrees of freedom per vertex
 
@@ -57,7 +58,6 @@ class LacconianCalculus:
         self.properties = torch.tensor(self.properties, device=self.device)
 
     # Re-usable tensors are initialized just once at the beginning.
-    # CAUTION: we are exploiting the fact our iterations preserve mesh connectivity.
     def initialize_containers(self):
         # Beam local frames container: (#edges, 3, 3) torch.tensor.
         self.beam_frames = torch.zeros(self.initial_mesh.edges.shape[0], 3, 3, device=self.device)
@@ -131,7 +131,7 @@ class LacconianCalculus:
         # Beam frames computation.
         self.beam_frames[:, 0, :] = mesh.edge_directions
         self.beam_frames[:, 1, :] = mesh.edge_normals
-        self.beam_frames[:, 2, :] = torch.cross(mesh.edge_directions, mesh.edge_normals)
+        self.beam_frames[:, 2, :] = mesh.cross_dirs
 
     # Execute all stiffness and resistence computations.
     def beam_model_solve(self, mesh):
@@ -292,11 +292,9 @@ class LacconianCalculus:
 
         return stressed_mesh
 
-    # Show displaced mesh via polyscope.
-    def plot_grid_shell(self, mesh):
-        colors = torch.norm(self.vertex_deformations[:, :3], p=2, dim=1)
-        mesh.plot_mesh(colors)
-
+    def save_grid_shell(self, mesh):
+        quality = torch.norm(self.vertex_deformations[:, :3], p=2, dim=1)
+        save_mesh(mesh, 'stressed_mesh.ply', v_quality=quality.unsqueeze(1))
 
 
 #############################################################################################################
@@ -304,4 +302,4 @@ class LacconianCalculus:
 if __name__ == '__main__':
     lc = LacconianCalculus(file='meshes/go.ply', device='cpu')
     stressed_mesh = lc.stress_mesh()
-    lc.plot_grid_shell(stressed_mesh)
+    lc.save_grid_shell(stressed_mesh)

@@ -90,7 +90,7 @@ class WandbLogger:
         source_path = 'meshes/' + row['MESH']                   # Source mesh path.
         lr = row['LR']                                          # Optimizer learning rate.
         momentum = row['MOMENTUM']                              # Optimizer momentum.
-        init_mode = 'zeros'                                     # Optimizer initialization mode.
+        init_mode = 'uniform'                                   # Optimizer initialization mode.
         beam_have_load = True                                   # If beam load is computed or not.
         loss_type = row['LOSS']                                 # Which structural loss is computed.
         with_laplacian_smooth = True                            # If laplacian regularization is employed or not.
@@ -100,9 +100,8 @@ class WandbLogger:
         normcons_loss_perc = row['NORMCONS_PERC']               # Normal consistency regularization percentual on structural loss.
         varfaceareas_loss_perc = row['VARAREA_PERC']            # Face area variance regularization percentual on structural loss.
         n_iter = self.n_iter                                    # Number of iterations per experiment.
-        plot = False                                            # If we want to show meshes during iterations or not.
         save = True                                             # If we want to save meshes during iterations or not.
-        plot_save_interval = 50                                 # Iteration interval between mesh saves/plots.
+        save_interval = 50                                      # Iteration interval between mesh saves.
         display_interval = -1                                   # Iteration interval between loss displays.
         save_label = row['MESH'][:-4]                           # Label of saved mesh.
         take_times = False                                      # If we want to see iteration and backward times or not.
@@ -110,7 +109,7 @@ class WandbLogger:
 
         optimizer = LacconianOptimizer(source_path, lr, momentum, self.device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, with_var_face_areas, laplsmooth_loss_perc, normcons_loss_perc, varfaceareas_loss_perc)
         print('Optimizing (run ' + str(row['INDEX']+1) + ' of ' + str(self.no_experiments) + ' ) ...')
-        optimizer.start(n_iter, plot, save, plot_save_interval, display_interval, save_label, take_times, save_prefix=save_prefix, wandb_run=run)
+        optimizer.start(n_iter, save, save_interval, display_interval, save_label, take_times, save_prefix=save_prefix, wandb_run=run)
         
 
 if __name__ == '__main__':

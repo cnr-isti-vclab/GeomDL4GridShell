@@ -24,7 +24,7 @@ class LacconianOptimizer:
 
         # Finding laplacian smoothing loss scaling factor according to input percentage.
         if with_laplacian_smooth:
-            self.laplacian_smoothing = LaplacianSmoothing(self.initial_mesh, device)
+            self.laplacian_smoothing = LaplacianSmoothing(device)
             if laplsmooth_loss_perc == -1:
                 self.laplsmooth_scaling_factor = 1
             else:
@@ -56,11 +56,11 @@ class LacconianOptimizer:
             self.displacements = -self.lc.vertex_deformations[self.lc.non_constrained_vertices, :3]
             self.displacements.requires_grad = True
         elif init_mode == 'uniform':
-            self.displacements = torch.distributions.Uniform(0,1e-6).sample((len(self.initial_mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
+            self.displacements = torch.distributions.Uniform(0,1e-4).sample((len(self.initial_mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
             self.displacements = self.displacements.to(device)
             self.displacements.requires_grad = True
         elif init_mode == 'normal':
-            self.displacements = torch.distributions.Normal(0,1e-6).sample((len(self.initial_mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
+            self.displacements = torch.distributions.Normal(0,1e-4).sample((len(self.initial_mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
             self.displacements = self.displacements.to(device)
             self.displacements.requires_grad = True
         elif init_mode == 'zeros':
@@ -70,7 +70,7 @@ class LacconianOptimizer:
         # self.optimizer = torch.optim.Adam([ self.displacements ], lr=lr)
         self.optimizer = torch.optim.SGD([ self.displacements ], lr=lr, momentum=momentum)
 
-    def start(self, n_iter, plot, save, plot_save_interval, display_interval, save_label, take_times, save_prefix='', wandb_run=None):
+    def start(self, n_iter, save, save_interval, display_interval, save_label, take_times, save_prefix='', wandb_run=None):
         # Initializing best loss.
         best_loss = torch.tensor(float('inf'), device=self.device)
 
@@ -93,12 +93,8 @@ class LacconianOptimizer:
             max_displacement_norm = torch.max(torch.norm(offset, p=2, dim=1))
             log_dict['max_displacement_norm'] = max_displacement_norm
 
-            # Plotting/saving.
-            if current_iteration % plot_save_interval == 0:
-                if plot:
-                    colors = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
-                    iteration_mesh.plot_mesh(colors=colors)
-
+            # Saving current iteration mesh if requested.
+            if current_iteration % save_interval == 0:
                 if save:
                     filename = save_prefix + save_label + '_' + str(current_iteration) + '.ply'
                     quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
@@ -156,7 +152,6 @@ class LacconianOptimizer:
                 if hasattr(self, 'varareas_scaling_factor'):
                     var_face_areas_at_best_iteration = var_areas
 
-                # CAUTION: we do not store best_mesh_faces as meshing do not change.
                 if save:
                     best_mesh = iteration_mesh
                     best_quality = quality
@@ -197,4 +192,4 @@ if __name__ == '__main__':
     parser = OptimizerOptions()
     options = parser.parse()
     lo = LacconianOptimizer(options.path, options.lr, options.momentum, options.device, options.init_mode, options.beam_have_load, options.loss_type, options.with_laplacian_smooth, options.with_normal_consistency, options.with_var_face_areas, options.laplsmooth_loss_perc, options.normcons_loss_perc, options.varfaceareas_loss_perc)
-    lo.start(options.n_iter, options.plot, options.save, options.plot_save_interval, options.display_interval, options.save_label, options.take_times)
+    lo.start(options.n_iter, options.save, options.save_interval, options.display_interval, options.save_label, options.take_times)
