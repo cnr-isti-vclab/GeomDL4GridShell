@@ -10,7 +10,7 @@
 import torch
 import numpy as np
 # from queue import Queue
-from utils import load_mesh, plot_mesh, edge_connectivity
+from utils import load_mesh, edge_connectivity
 from torch.nn.functional import normalize
 import copy
 # from pathlib import Path
@@ -31,7 +31,7 @@ class Mesh:
             self.vertices, self.faces = vertices.cpu().numpy(), faces.cpu().numpy()
             # self.scale, self.translations = 1.0, np.zeros(3,)
         else:
-            self.vertices, self.faces, self.vertex_is_red, self.vertex_is_blue = load_mesh(file)
+            self.vertices, self.faces, self.vertex_is_red, self.vertex_is_blue, self.vertex_is_on_boundary = load_mesh(file)
             # self.normalize_unit_bb()
         # self.vs_in = copy.deepcopy(self.vertices)
         # self.v_mask = np.ones(len(self.vertices), dtype=bool)
@@ -54,12 +54,15 @@ class Mesh:
             self.vertex_is_red = torch.from_numpy(self.vertex_is_red)
         if type(self.vertex_is_blue) is np.ndarray:
             self.vertex_is_blue = torch.from_numpy(self.vertex_is_blue)
+        if type(self.vertex_is_on_boundary) is np.ndarray:
+            self.vertex_is_on_boundary = torch.from_numpy(self.vertex_is_on_boundary)
         self.vertices = self.vertices.to(device)
         self.edges = self.edges.long().to(device)
         self.faces = self.faces.long().to(device)
         self.edges_per_face = self.edges_per_face.long().to(device)
         self.vertex_is_red = self.vertex_is_red.to(device)
         self.vertex_is_blue = self.vertex_is_blue.to(device)
+        self.vertex_is_on_boundary = self.vertex_is_on_boundary.to(device)
         self.make_on_mesh_shared_computations()
         # self.face_areas, self.face_normals = self.face_areas_normals(self.vertices, self.faces)
 
@@ -94,6 +97,7 @@ class Mesh:
     def make_on_mesh_shared_computations(self):
         self.compute_edge_lengths_and_directions()
         self.compute_edge_normals()
+        self.cross_dirs = torch.cross(self.edge_directions, self.edge_normals)
 
     @staticmethod
     def face_areas_normals(vs, faces, normalize=True):
@@ -124,10 +128,3 @@ class Mesh:
         new_mesh.make_on_mesh_shared_computations()
         
         return new_mesh
-
-    def plot_mesh(self, colors=None):
-        vertices = self.vertices.detach()
-        faces = self.faces.detach()
-        if colors is not None:
-            colors = colors.detach()
-        plot_mesh(vertices, faces, colors)
