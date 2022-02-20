@@ -23,6 +23,7 @@ class OptimizerOptions:
         self.parser.add_argument('--laplsmoothlossperc', dest='laplsmooth_loss_perc', type=float, default=-1, help='laplacian smoothing percentual weight w.r.t. lacconian loss')
         self.parser.add_argument('--normconslossperc', dest='normcons_loss_perc', type=float, default=-1, help='normal consistency percentual weight w.r.t. lacconian loss')
         self.parser.add_argument('--varfaceareaslossperc', dest='varfaceareas_loss_perc', type=float, default=-1, help='face area variance percentual weight w.r.t. lacconian loss')
+        self.parser.add_argument('--boundaryreg', dest='boundary_reg', action='store_true', default=False, help='If boundary normal consistency reg is employed or not')
 
     def parse(self):
         return self.parser.parse_args()
