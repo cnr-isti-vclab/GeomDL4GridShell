@@ -10,7 +10,7 @@ from utils import save_mesh
 
 class LacconianOptimizer:
 
-    def __init__(self, file, lr, momentum, device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, with_var_face_areas, laplsmooth_loss_perc, normcons_loss_perc, varfaceareas_loss_perc):
+    def __init__(self, file, lr, momentum, device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, with_var_face_areas, laplsmooth_loss_perc, normcons_loss_perc, varfaceareas_loss_perc, boundary_reg):
         self.initial_mesh = Mesh(file=file, device=device)
         self.loss_type = loss_type
         self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.initial_mesh, beam_have_load=beam_have_load)
@@ -33,7 +33,7 @@ class LacconianOptimizer:
 
         # Finding normal consistency loss scaling factor according to input percentage.
         if with_normal_consistency:
-            self.normal_consistency = NormalConsistency(self.initial_mesh, device)
+            self.normal_consistency = NormalConsistency(self.initial_mesh, device, boundary_reg)
             if normcons_loss_perc == -1:
                 self.normcons_scaling_factor = 1
             else:
@@ -191,5 +191,5 @@ class LacconianOptimizer:
 if __name__ == '__main__':
     parser = OptimizerOptions()
     options = parser.parse()
-    lo = LacconianOptimizer(options.path, options.lr, options.momentum, options.device, options.init_mode, options.beam_have_load, options.loss_type, options.with_laplacian_smooth, options.with_normal_consistency, options.with_var_face_areas, options.laplsmooth_loss_perc, options.normcons_loss_perc, options.varfaceareas_loss_perc)
+    lo = LacconianOptimizer(options.path, options.lr, options.momentum, options.device, options.init_mode, options.beam_have_load, options.loss_type, options.with_laplacian_smooth, options.with_normal_consistency, options.with_var_face_areas, options.laplsmooth_loss_perc, options.normcons_loss_perc, options.varfaceareas_loss_perc, options.boundary_reg)
     lo.start(options.n_iter, options.save, options.save_interval, options.display_interval, options.save_label, options.take_times)
