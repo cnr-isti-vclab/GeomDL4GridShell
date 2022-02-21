@@ -24,6 +24,9 @@ class OptimizerOptions:
         self.parser.add_argument('--normconslossperc', dest='normcons_loss_perc', type=float, default=-1, help='normal consistency percentual weight w.r.t. lacconian loss')
         self.parser.add_argument('--varfaceareaslossperc', dest='varfaceareas_loss_perc', type=float, default=-1, help='face area variance percentual weight w.r.t. lacconian loss')
         self.parser.add_argument('--boundaryreg', dest='boundary_reg', action='store_true', default=False, help='If boundary normal consistency reg is employed or not')
+        self.parser.add_argument('--remeshing', dest='with_remeshing', action='store_true', default=False, help='If periodic remeshing is requested or not')
+        self.parser.add_argument('--remeshinginterval', dest='remeshing_interval', type=int, default=1000, help='Isotrophic remeshing iterations interval')
+
 
     def parse(self):
         return self.parser.parse_args()
