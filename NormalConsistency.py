@@ -36,7 +36,7 @@ class NormalConsistency:
             if len(boundary_free_vertex_list) != 0:
                 self.edges_per_free_boundary_vertex = torch.stack(boundary_free_vertex_list, dim=0).long()
             else:
-                self.edges_per_free_boundary_vertex = torch.tensor([], device=self.device)
+                self.boundary_reg = False
 
     def __call__(self, mesh):
         if self.boundary_reg:

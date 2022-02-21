@@ -22,10 +22,12 @@ LIST_OF_LISTS = [MESHES, LOSSES, LR, MOMENTUM, LAPLACIAN_PERC, NORMCONS_PERC, VA
 
 class WandbLogger:
     
-    def __init__(self, device, project, n_iter):
+    def __init__(self, device, project, n_iter, with_remeshing, remeshing_interval):
         self.device = torch.device(device)
         self.project = project
         self.n_iter = n_iter
+        self.with_remeshing = with_remeshing
+        self.remeshing_interval = remeshing_interval
 
         # Making Results directory.
         if not os.path.exists('Results'):
@@ -111,12 +113,12 @@ class WandbLogger:
 
         optimizer = LacconianOptimizer(source_path, lr, momentum, self.device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, with_var_face_areas, laplsmooth_loss_perc, normcons_loss_perc, varfaceareas_loss_perc, boundary_reg)
         print('Optimizing (run ' + str(row['INDEX']+1) + ' of ' + str(self.no_experiments) + ' ) ...')
-        optimizer.start(n_iter, save, save_interval, display_interval, save_label, take_times, save_prefix=save_prefix, wandb_run=run)
+        optimizer.optimize(n_iter, save, save_interval, display_interval, save_label, take_times, self.with_remeshing, self.remeshing_interval, save_prefix=save_prefix, wandb_run=run)
         
 
 if __name__ == '__main__':
     parser = WandbLoggerOptions()
     options = parser.parse()
-    wandb_logger = WandbLogger(options.device, options.project, options.n_iter)
+    wandb_logger = WandbLogger(options.device, options.project, options.n_iter, options.with_remeshing, options.remeshing_interval)
     wandb_logger.start()
 

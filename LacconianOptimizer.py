@@ -1,19 +1,26 @@
 import torch
 import time
+import os
 from LacconianCalculus import LacconianCalculus
 from LaplacianSmoothing import LaplacianSmoothing
 from NormalConsistency import NormalConsistency
 from models.layers.mesh import Mesh
 from options.optimizer_options import OptimizerOptions
-from utils import save_mesh
+from utils import save_mesh, isotrophic_remesh
 
 
 class LacconianOptimizer:
 
     def __init__(self, file, lr, momentum, device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, with_var_face_areas, laplsmooth_loss_perc, normcons_loss_perc, varfaceareas_loss_perc, boundary_reg):
         self.initial_mesh = Mesh(file=file, device=device)
+        self.beam_have_load = beam_have_load
+        self.device = device
         self.loss_type = loss_type
         self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.initial_mesh, beam_have_load=beam_have_load)
+        self.init_mode = init_mode
+        self.boundary_reg = boundary_reg
+        self.lr = lr
+        self.momentum = momentum
 
         # Taking useful initial data.
         loss_0 = self.lacconian_calculus(self.initial_mesh, self.loss_type)
@@ -50,32 +57,34 @@ class LacconianOptimizer:
 
         self.device = torch.device(device)
 
+        self.make_optimizer()
+
+    def make_optimizer(self):
         # Initializing displacements.
-        if init_mode == 'stress_aided':
-            self.lc = LacconianCalculus(file=file, device=device, beam_have_load=beam_have_load)
-            self.displacements = -self.lc.vertex_deformations[self.lc.non_constrained_vertices, :3]
-            self.displacements.requires_grad = True
-        elif init_mode == 'uniform':
+        if self.init_mode == 'uniform':
             self.displacements = torch.distributions.Uniform(0,1e-4).sample((len(self.initial_mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
-            self.displacements = self.displacements.to(device)
+            self.displacements = self.displacements.to(self.device)
             self.displacements.requires_grad = True
-        elif init_mode == 'normal':
+        elif self.init_mode == 'normal':
             self.displacements = torch.distributions.Normal(0,1e-4).sample((len(self.initial_mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3))
-            self.displacements = self.displacements.to(device)
+            self.displacements = self.displacements.to(self.device)
             self.displacements.requires_grad = True
-        elif init_mode == 'zeros':
+        elif self.init_mode == 'zeros':
             self.displacements = torch.zeros(len(self.initial_mesh.vertices[self.lacconian_calculus.non_constrained_vertices]), 3, device=self.device, requires_grad=True)
 
         # Building optimizer.
         # self.optimizer = torch.optim.Adam([ self.displacements ], lr=lr)
-        self.optimizer = torch.optim.SGD([ self.displacements ], lr=lr, momentum=momentum)
+        self.optimizer = torch.optim.SGD([ self.displacements ], lr=self.lr, momentum=self.momentum)
 
-    def start(self, n_iter, save, save_interval, display_interval, save_label, take_times, save_prefix='', wandb_run=None):
+    def optimize(self, n_iter, save, save_interval, display_interval, save_label, take_times, with_remeshing, remeshing_interval, save_prefix='', wandb_run=None):
         # Initializing best loss.
         best_loss = torch.tensor(float('inf'), device=self.device)
 
-        current_iteration = 0
         for current_iteration in range(n_iter):
+            # Executing remeshing if requested.
+            if with_remeshing and current_iteration != 0 and current_iteration % remeshing_interval == 0:
+                self.restart(iteration_mesh, current_iteration, save_label, save_prefix, display_interval) 
+
             iter_start = time.time()
 
             # Putting grads to None.
@@ -188,8 +197,26 @@ class LacconianOptimizer:
             filename = save_prefix + '[BEST]' + save_label + '_' + str(best_iteration) + '.ply'
             save_mesh(best_mesh, filename, v_quality=best_quality.unsqueeze(1))
 
+    def restart(self, iteration_mesh, current_iteration, save_label, save_prefix, display_interval):
+        if display_interval != -1:
+            print('Computing isotrophic remesh...')
+
+        # Saving remesh.
+        filename = save_prefix + '[remesh]' + save_label + '_' + str(current_iteration) + '.ply'
+        target_length = float(torch.mean(iteration_mesh.edge_lengths))
+        isotrophic_remesh(iteration_mesh, filename, target_length)
+
+        # Reloading mesh.
+        self.initial_mesh = Mesh(file=filename, device=self.device)
+        self.lacconian_calculus = LacconianCalculus(device=self.device, mesh=self.initial_mesh, beam_have_load=self.beam_have_load)
+        if hasattr(self, 'normal_consistency'):
+            self.normal_consistency = NormalConsistency(self.initial_mesh, self.device, self.boundary_reg)
+
+        self.make_optimizer()
+        
+
 if __name__ == '__main__':
     parser = OptimizerOptions()
     options = parser.parse()
     lo = LacconianOptimizer(options.path, options.lr, options.momentum, options.device, options.init_mode, options.beam_have_load, options.loss_type, options.with_laplacian_smooth, options.with_normal_consistency, options.with_var_face_areas, options.laplsmooth_loss_perc, options.normcons_loss_perc, options.varfaceareas_loss_perc, options.boundary_reg)
-    lo.start(options.n_iter, options.save, options.save_interval, options.display_interval, options.save_label, options.take_times)
+    lo.optimize(options.n_iter, options.save, options.save_interval, options.display_interval, options.save_label, options.take_times, options.with_remeshing, options.remeshing_interval)

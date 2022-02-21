@@ -49,6 +49,38 @@ def save_mesh(mesh, filename, v_quality=np.array([], dtype=np.float64)):
     # Saving mesh on filename.
     ms.save_current_mesh(filename)
 
+def isotrophic_remesh(mesh, filename, target_length):
+    # Changing torch.tensors to np.arrays.
+    vertices = np.float64(mesh.vertices.detach().cpu().numpy())
+    faces = mesh.faces.detach().cpu().numpy()
+
+    # Creating vertex_color_matrix from vertex_is_red, vertex_is_blue.
+    colors = np.zeros((vertices.shape[0], 4))
+    for idx, red_vertex in enumerate(mesh.vertex_is_red):
+        if red_vertex:
+            colors[idx, :] = np.array([1., 0., 0., 1.])
+        else:
+            colors[idx, :] = np.array([0.75294118, 0.75294118, 0.75294118, 1])
+    for idx, blue_vertex in enumerate(mesh.vertex_is_blue):
+        if blue_vertex:
+            colors[idx, :] = np.array([0., 0., 1., 1.])
+
+    # Creating pymeshlab MeshSet, adding mesh.
+    ms = pymeshlab.MeshSet()
+    mesh = pymeshlab.Mesh(vertex_matrix=vertices, face_matrix=faces, v_color_matrix=colors)
+    ms.add_mesh(mesh, set_as_current=True)
+    
+    # Getting target_lenght percentage.
+    mesh.update_bounding_box()
+    bb_diagonal = mesh.bounding_box().diagonal()
+    target_length_perc = pymeshlab.Percentage(target_length * 100 / bb_diagonal)
+
+    # Applying isotrophic remeshing.
+    ms.remeshing_isotropic_explicit_remeshing(iterations=20, adaptive=True, targetlen=target_length_perc)
+
+    # Saving mesh on filename
+    ms.save_current_mesh(filename)
+
 def edge_connectivity(face_matrix):
     # Initializing edge lists.
     edge_list = []
