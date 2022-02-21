@@ -13,26 +13,26 @@ class NormalConsistency:
         edge_list = []
         boundary_free_vertex_list = []
 
+        edge_is_on_boundary = torch.zeros(self.initial_mesh.edges.shape[0], dtype=torch.bool, device=self.device)
+
         # Building edge flaps face matrix.
         for edge in range(self.initial_mesh.edges.shape[0]):
             faces = torch.any(self.initial_mesh.edges_per_face == edge, dim=1).nonzero().flatten()
             # Boundary edges are excluded.
             if faces.shape[0] == 2:
                 edge_list.append(faces)
+            else:
+                edge_is_on_boundary[edge] = True
             
         self.faces_per_edge = torch.stack(edge_list, dim=0).long()
 
         # Building boundary vertex edge matrix.
         if self.boundary_reg:
-            per_edge_vertex_is_on_boundary = self.initial_mesh.vertex_is_on_boundary[self.initial_mesh.edges]
-            edge_is_on_boundary = per_edge_vertex_is_on_boundary[:, 0] * per_edge_vertex_is_on_boundary[:, 1]
             for vertex in range(self.initial_mesh.vertices.shape[0]):
                 if self.initial_mesh.vertex_is_on_boundary[vertex] and not self.initial_mesh.vertex_is_red[vertex] and not self.initial_mesh.vertex_is_blue[vertex]:
                     edges = (torch.any(self.initial_mesh.edges == vertex, dim=1) * edge_is_on_boundary).nonzero().flatten()
-                    if edges.shape[0] > 2:
-                        edges = edges[ :2]
                     boundary_free_vertex_list.append(edges)
-                
+            
             if len(boundary_free_vertex_list) != 0:
                 self.edges_per_free_boundary_vertex = torch.stack(boundary_free_vertex_list, dim=0).long()
             else:
