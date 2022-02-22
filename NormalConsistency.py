@@ -9,9 +9,9 @@ class NormalConsistency:
         self.boundary_reg = boundary_reg
         self.make_adjacency_matrices()
 
-        # Initial >=30° angles are not smoothed.
+        # Initial >=45° angles are not smoothed.
         consistency = self.compute_consistency(mesh, 1.)
-        self.consistency_mask = (consistency <=  1 - torch.cos(torch.tensor(torch.pi / 6, device=self.device)))
+        self.consistency_mask = (consistency <=  1 - torch.cos(torch.tensor(torch.pi / 2, device=self.device)))
 
     def make_adjacency_matrices(self):
         edge_list = []
@@ -43,7 +43,7 @@ class NormalConsistency:
                 self.boundary_reg = False
 
     def __call__(self, mesh):
-        consistency = self.compute_consistency(mesh, 0.5)
+        consistency = self.compute_consistency(mesh, 0.25)
         loss = torch.mean(consistency[self.consistency_mask])
         return loss
 
