@@ -11,7 +11,7 @@ class NormalConsistency:
 
         # Initial >=30° angles are not smoothed.
         consistency = self.compute_consistency(mesh, 1.)
-        self.consistency_mask = (consistency >=  1 - torch.cos(torch.tensor(torch.pi / 6), device=self.device))
+        self.consistency_mask = (consistency <=  1 - torch.cos(torch.tensor(torch.pi / 6, device=self.device)))
 
     def make_adjacency_matrices(self):
         edge_list = []
