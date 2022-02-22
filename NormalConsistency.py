@@ -9,6 +9,10 @@ class NormalConsistency:
         self.boundary_reg = boundary_reg
         self.make_adjacency_matrices()
 
+        # Initial >=30° angles are not smoothed.
+        consistency = self.compute_consistency(mesh, 1.)
+        self.consistency_mask = (consistency >=  1 - torch.cos(torch.tensor(torch.pi / 6), device=self.device))
+
     def make_adjacency_matrices(self):
         edge_list = []
         boundary_free_vertex_list = []
@@ -39,14 +43,17 @@ class NormalConsistency:
                 self.boundary_reg = False
 
     def __call__(self, mesh):
+        consistency = self.compute_consistency(mesh, 0.5)
+        loss = torch.mean(consistency[self.consistency_mask])
+        return loss
+
+    def compute_consistency(self, mesh, weight):
         if self.boundary_reg:
-            n0 = torch.cat((mesh.face_normals[self.faces_per_edge[:, 0]], mesh.cross_dirs[self.edges_per_free_boundary_vertex[:, 0]]), dim=0)
-            n1 = torch.cat((mesh.face_normals[self.faces_per_edge[:, 1]], mesh.cross_dirs[self.edges_per_free_boundary_vertex[:, 1]]), dim=0)
+            n0 = torch.cat((mesh.face_normals[self.faces_per_edge[:, 0]], weight * mesh.cross_dirs[self.edges_per_free_boundary_vertex[:, 0]]), dim=0)
+            n1 = torch.cat((mesh.face_normals[self.faces_per_edge[:, 1]], weight * mesh.cross_dirs[self.edges_per_free_boundary_vertex[:, 1]]), dim=0)
         else:
             n0 = mesh.face_normals[self.faces_per_edge[:, 0]]
             n1 = mesh.face_normals[self.faces_per_edge[:, 1]]
 
         consistency = 1 - torch.cosine_similarity(n0, n1, dim=1)
-        loss = torch.mean(consistency)
-
-        return loss
+        return consistency
