@@ -108,12 +108,13 @@ class WandbLogger:
         save_interval = 50                                      # Iteration interval between mesh saves.
         display_interval = -1                                   # Iteration interval between loss displays.
         save_label = row['MESH'][:-4]                           # Label of saved mesh.
+        see_not_smoothed = False                                # If we want to see not smoothed point cloud or not.
         take_times = False                                      # If we want to see iteration and backward times or not.
         save_prefix = path + '/'                                # Path of current run saves.
 
         optimizer = LacconianOptimizer(source_path, lr, momentum, self.device, init_mode, beam_have_load, loss_type, with_laplacian_smooth, with_normal_consistency, with_var_face_areas, laplsmooth_loss_perc, normcons_loss_perc, varfaceareas_loss_perc, boundary_reg)
         print('Optimizing (run ' + str(row['INDEX']+1) + ' of ' + str(self.no_experiments) + ' ) ...')
-        optimizer.optimize(n_iter, save, save_interval, display_interval, save_label, take_times, self.with_remeshing, self.remeshing_interval, save_prefix=save_prefix, wandb_run=run)
+        optimizer.optimize(n_iter, save, save_interval, display_interval, save_label, take_times, self.with_remeshing, self.remeshing_interval, see_not_smoothed, save_prefix=save_prefix, wandb_run=run)
         
 
 if __name__ == '__main__':

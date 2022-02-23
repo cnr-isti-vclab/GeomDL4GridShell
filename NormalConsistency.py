@@ -13,9 +13,19 @@ class NormalConsistency:
         consistency = self.compute_consistency(mesh, 1.)
         self.consistency_mask = (consistency <=  1 - torch.cos(torch.tensor(torch.pi / 2, device=self.device)))
 
+        # Not-smoothed vertices and edge endpoints are saved in a point cloud.
+        edge_mask = torch.logical_not(self.consistency_mask[ :self.edge_pos.shape[0]])
+        vertices_mask = torch.logical_not(self.consistency_mask[self.edge_pos.shape[0]: ])
+        masked_edges_endpts = self.initial_mesh.edges[self.edge_pos[edge_mask], :].flatten()
+        masked_vertices = self.boundary_vertex_pos[vertices_mask]
+        self.not_smoothed_points = self.initial_mesh.vertices[torch.cat([masked_edges_endpts, masked_vertices], dim=0)]
+
     def make_adjacency_matrices(self):
         edge_list = []
         boundary_free_vertex_list = []
+
+        edge_pos = []
+        boundary_vertex_pos = []
 
         edge_is_on_boundary = torch.zeros(self.initial_mesh.edges.shape[0], dtype=torch.bool, device=self.device)
 
@@ -24,11 +34,13 @@ class NormalConsistency:
             faces = torch.any(self.initial_mesh.edges_per_face == edge, dim=1).nonzero().flatten()
             # Boundary edges are excluded.
             if faces.shape[0] == 2:
+                edge_pos.append(edge)
                 edge_list.append(faces)
             else:
                 edge_is_on_boundary[edge] = True
             
         self.faces_per_edge = torch.stack(edge_list, dim=0).long()
+        self.edge_pos = torch.tensor(edge_pos, device=self.device)
 
         # Building boundary vertex edge matrix.
         if self.boundary_reg:
@@ -36,9 +48,11 @@ class NormalConsistency:
                 if self.initial_mesh.vertex_is_on_boundary[vertex] and not self.initial_mesh.vertex_is_red[vertex] and not self.initial_mesh.vertex_is_blue[vertex]:
                     edges = (torch.any(self.initial_mesh.edges == vertex, dim=1) * edge_is_on_boundary).nonzero().flatten()
                     boundary_free_vertex_list.append(edges)
+                    boundary_vertex_pos.append(vertex)
             
             if len(boundary_free_vertex_list) != 0:
                 self.edges_per_free_boundary_vertex = torch.stack(boundary_free_vertex_list, dim=0).long()
+                self.boundary_vertex_pos = torch.tensor(boundary_vertex_pos, device=self.device)
             else:
                 self.boundary_reg = False
 

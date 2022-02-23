@@ -6,7 +6,7 @@ from LaplacianSmoothing import LaplacianSmoothing
 from NormalConsistency import NormalConsistency
 from models.layers.mesh import Mesh
 from options.optimizer_options import OptimizerOptions
-from utils import save_mesh, isotrophic_remesh
+from utils import save_mesh, isotrophic_remesh, save_cloud
 
 
 class LacconianOptimizer:
@@ -76,14 +76,23 @@ class LacconianOptimizer:
         # self.optimizer = torch.optim.Adam([ self.displacements ], lr=lr)
         self.optimizer = torch.optim.SGD([ self.displacements ], lr=self.lr, momentum=self.momentum)
 
-    def optimize(self, n_iter, save, save_interval, display_interval, save_label, take_times, with_remeshing, remeshing_interval, save_prefix='', wandb_run=None):
+    def optimize(self, n_iter, save, save_interval, display_interval, save_label, take_times, with_remeshing, remeshing_interval, see_not_smoothed, save_prefix='', wandb_run=None):
         # Initializing best loss.
         best_loss = torch.tensor(float('inf'), device=self.device)
+
+        # Saving not smoothed point cloud, if requested
+        if hasattr(self, 'normal_consistency') and see_not_smoothed and save:
+                    filename = save_prefix + '[cloud]' + save_label + '.ply'
+                    save_cloud(self.normal_consistency.not_smoothed_points, filename)
 
         for current_iteration in range(n_iter):
             # Executing remeshing if requested.
             if with_remeshing and current_iteration != 0 and current_iteration % remeshing_interval == 0:
-                self.restart(iteration_mesh, current_iteration, save_label, save_prefix, display_interval) 
+                self.restart(iteration_mesh, current_iteration, save_label, save_prefix, display_interval)
+                # Saving not smoothed point cloud, if requested. 
+                if hasattr(self, 'normal_consistency') and see_not_smoothed and save:
+                    filename = save_prefix + '[remesh_cloud]' + save_label + '_' + str(current_iteration) + '.ply'
+                    save_cloud(self.normal_consistency.not_smoothed_points, filename)
 
             iter_start = time.time()
 
@@ -219,4 +228,4 @@ if __name__ == '__main__':
     parser = OptimizerOptions()
     options = parser.parse()
     lo = LacconianOptimizer(options.path, options.lr, options.momentum, options.device, options.init_mode, options.beam_have_load, options.loss_type, options.with_laplacian_smooth, options.with_normal_consistency, options.with_var_face_areas, options.laplsmooth_loss_perc, options.normcons_loss_perc, options.varfaceareas_loss_perc, options.boundary_reg)
-    lo.optimize(options.n_iter, options.save, options.save_interval, options.display_interval, options.save_label, options.take_times, options.with_remeshing, options.remeshing_interval)
+    lo.optimize(options.n_iter, options.save, options.save_interval, options.display_interval, options.save_label, options.take_times, options.with_remeshing, options.remeshing_interval, options.see_not_smoothed)
