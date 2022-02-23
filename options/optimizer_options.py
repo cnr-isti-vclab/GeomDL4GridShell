@@ -26,6 +26,7 @@ class OptimizerOptions:
         self.parser.add_argument('--boundaryreg', dest='boundary_reg', action='store_true', default=False, help='If boundary normal consistency reg is employed or not')
         self.parser.add_argument('--remeshing', dest='with_remeshing', action='store_true', default=False, help='If periodic remeshing is requested or not')
         self.parser.add_argument('--remeshinginterval', dest='remeshing_interval', type=int, default=1000, help='Isotrophic remeshing iterations interval')
+        self.parser.add_argument('--notsmoothedcloud', dest='see_not_smoothed', action='store_true', default=False, help='If we want not smoothed point cloud or not')
 
 
     def parse(self):
