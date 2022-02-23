@@ -82,8 +82,9 @@ class LacconianOptimizer:
 
         # Saving not smoothed point cloud, if requested
         if hasattr(self, 'normal_consistency') and see_not_smoothed and save:
-                    filename = save_prefix + '[cloud]' + save_label + '.ply'
-                    save_cloud(self.normal_consistency.not_smoothed_points, filename)
+            if self.normal_consistency.not_smoothed_points.shape[0] != 0:
+                filename = save_prefix + '[cloud]' + save_label + '.ply'
+                save_cloud(self.normal_consistency.not_smoothed_points, filename)
 
         for current_iteration in range(n_iter):
             # Executing remeshing if requested.
@@ -91,8 +92,9 @@ class LacconianOptimizer:
                 self.restart(iteration_mesh, current_iteration, save_label, save_prefix, display_interval)
                 # Saving not smoothed point cloud, if requested. 
                 if hasattr(self, 'normal_consistency') and see_not_smoothed and save:
-                    filename = save_prefix + '[remesh_cloud]' + save_label + '_' + str(current_iteration) + '.ply'
-                    save_cloud(self.normal_consistency.not_smoothed_points, filename)
+                    if self.normal_consistency.not_smoothed_points.shape[0] != 0:
+                        filename = save_prefix + '[remesh_cloud]' + save_label + '_' + str(current_iteration) + '.ply'
+                        save_cloud(self.normal_consistency.not_smoothed_points, filename)
 
             iter_start = time.time()
 
