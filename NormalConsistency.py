@@ -17,8 +17,11 @@ class NormalConsistency:
         edge_mask = torch.logical_not(self.consistency_mask[ :self.edge_pos.shape[0]])
         vertices_mask = torch.logical_not(self.consistency_mask[self.edge_pos.shape[0]: ])
         masked_edges_endpts = self.initial_mesh.edges[self.edge_pos[edge_mask], :].flatten()
-        masked_vertices = self.boundary_vertex_pos[vertices_mask]
-        self.not_smoothed_points = self.initial_mesh.vertices[torch.cat([masked_edges_endpts, masked_vertices], dim=0)]
+        if self.boundary_reg:
+            masked_vertices = self.boundary_vertex_pos[vertices_mask]
+            self.not_smoothed_points = self.initial_mesh.vertices[torch.cat([masked_edges_endpts, masked_vertices], dim=0)]
+        else:
+            self.not_smoothed_points = self.initial_mesh.vertices[masked_edges_endpts]
 
     def make_adjacency_matrices(self):
         edge_list = []
