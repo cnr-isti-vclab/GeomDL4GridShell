@@ -20,7 +20,7 @@ import copy
 
 class Mesh:
 
-    def __init__(self, file, hold_history=False, vertices=None, faces=None, device='cpu', gfmm=True):
+    def __init__(self, file, vertices=None, faces=None, device='cpu'):
         if file is None:
             return
         # self.filename = Path(file)
@@ -91,6 +91,9 @@ class Mesh:
         self.edge_normals[:, 0].scatter_add_(0, self.edges_per_face.flatten(), torch.stack([self.face_normals[:, 0]] * 3, dim=1).flatten())
         self.edge_normals[:, 1].scatter_add_(0, self.edges_per_face.flatten(), torch.stack([self.face_normals[:, 1]] * 3, dim=1).flatten())
         self.edge_normals[:, 2].scatter_add_(0, self.edges_per_face.flatten(), torch.stack([self.face_normals[:, 2]] * 3, dim=1).flatten())
+
+        # Applying final l2-normalization.
+        self.edge_normals = normalize(self.edge_normals, p=2, dim=1)
 
     # Makes all mesh computations needed and shared between loss classes: face areas and normals, edge lengths and
     # directions, edge normals. 
