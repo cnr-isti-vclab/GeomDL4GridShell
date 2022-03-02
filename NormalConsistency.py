@@ -11,7 +11,7 @@ class NormalConsistency:
 
         # Initial >=45° angles are not smoothed.
         consistency = self.compute_consistency(mesh, 1.)
-        self.consistency_mask = (consistency <=  1 - torch.cos(torch.tensor(torch.pi / 2, device=self.device)))
+        self.consistency_mask = (consistency <=  1 - torch.cos(torch.tensor(torch.pi / 4, device=self.device)))
 
         # Not-smoothed vertices and edge endpoints are saved in a point cloud.
         edge_mask = torch.logical_not(self.consistency_mask[ :self.edge_pos.shape[0]])

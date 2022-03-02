@@ -300,6 +300,6 @@ class LacconianCalculus:
 #############################################################################################################
 #  TEST LacconianCalculus.py ###
 if __name__ == '__main__':
-    lc = LacconianCalculus(file='meshes/go.ply', device='cpu')
+    lc = LacconianCalculus(file='meshes/casestudy_tens.ply', device='cpu')
     stressed_mesh = lc.stress_mesh()
     lc.save_grid_shell(stressed_mesh)

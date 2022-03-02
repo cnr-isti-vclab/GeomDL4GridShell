@@ -1,5 +1,6 @@
 import numpy as np
 import pymeshlab
+import igl
 import torch
 
 def load_mesh(path):
@@ -18,7 +19,7 @@ def load_mesh(path):
     vertex_is_blue = np.where((colors[:,0] == 0) & (colors[:,1] == 0) & (colors[:,2] == 1), True, False)
 
     # Getting boundary vertices mask.
-    ms.select_border()
+    ms.compute_selection_from_mesh_border()
     vertex_is_on_boundary = mesh.vertex_selection_array()
    
     return vertices, faces, vertex_is_red, vertex_is_blue, vertex_is_on_boundary
@@ -43,11 +44,67 @@ def save_mesh(mesh, filename, v_quality=np.array([], dtype=np.float64)):
 
     # Creating pymeshlab MeshSet and adding mesh.
     ms = pymeshlab.MeshSet()
-    mesh = pymeshlab.Mesh(vertex_matrix=vertices, face_matrix=faces, v_color_matrix=colors, v_quality_array=v_quality)
+    mesh = pymeshlab.Mesh(vertex_matrix=vertices, face_matrix=faces, v_color_matrix=colors, v_scalar_array=v_quality)
     ms.add_mesh(mesh, set_as_current=True)
 
     # Saving mesh on filename.
     ms.save_current_mesh(filename)
+
+def extract_apss_principal_curvatures(path):
+    # Creating pymeshlab MeshSet, loading mesh from file and selecting it.
+    ms = pymeshlab.MeshSet()
+    ms.load_new_mesh(path)
+    mesh = ms.current_mesh()
+
+    # Getting first principal curvature.
+    ms.compute_curvature_and_color_apss_per_vertex(filterscale=8., curvaturetype='K1')
+    k1 = np.float32(mesh.vertex_scalar_array())
+    
+    # Getting second principal curvature.
+    ms.compute_curvature_and_color_apss_per_vertex(filterscale=8., curvaturetype='K2')
+    k2 = np.float32(mesh.vertex_scalar_array())
+
+    return k1, k2
+
+def extract_geodesic_distances(path):
+    # Creating pymeshlab MeshSet, loading mesh from file and selecting it.
+    ms = pymeshlab.MeshSet()
+    ms.load_new_mesh(path)
+    mesh = ms.current_mesh()
+
+    # Selecting firm vertices via compute_selection_by_condition_per_vertex filter.
+    ms.compute_selection_by_condition_per_vertex(condselect='((r == 255) && (g == 0) && (b == 0)) || ((r == 0) && (g == 0) && (b == 255))')
+
+    # Getting geodesic distance of mesh vertices from firm ones.
+    ms.compute_scalar_by_geodesic_distance_from_selection_per_vertex(maxdistance=pymeshlab.Percentage(100.))
+    from_firm_geodesic_distance = np.float32(mesh.vertex_scalar_array())
+
+    # Getting geodesic centrality of mesh vertices from firm ones.
+    v = mesh.vertex_matrix()
+    from_firm_geodesic_centrality = np.zeros(len(v))
+    for vertex in v[mesh.vertex_selection_array()]:
+        ms.compute_scalar_by_geodesic_distance_from_given_point_per_vertex(startpoint=vertex, maxdistance=pymeshlab.Percentage(100.))
+        from_firm_geodesic_centrality += mesh.vertex_scalar_array()
+    from_firm_geodesic_centrality /= len(v[mesh.vertex_selection_array()])
+    from_firm_geodesic_centrality = np.float32(from_firm_geodesic_centrality)
+
+    # Selecting red vertices via compute_selection_from_mesh_border filter.
+    ms.compute_selection_from_mesh_border()
+
+    # Getting geodesic distance of mesh vertices from red ones.
+    ms.compute_scalar_by_geodesic_distance_from_selection_per_vertex(maxdistance=pymeshlab.Percentage(100.))
+    from_bound_geodesic_distance = np.float32(mesh.vertex_scalar_array())
+
+    # Getting geodesic centrality of mesh vertices from red ones.
+    v = mesh.vertex_matrix()
+    from_bound_geodesic_centrality = np.zeros(len(v))
+    for vertex in v[mesh.vertex_selection_array()]:
+        ms.compute_scalar_by_geodesic_distance_from_given_point_per_vertex(startpoint=vertex, maxdistance=pymeshlab.Percentage(100.))
+        from_bound_geodesic_centrality += mesh.vertex_scalar_array()
+    from_bound_geodesic_centrality /= len(v[mesh.vertex_selection_array()])
+    from_bound_geodesic_centrality = np.float32(from_bound_geodesic_centrality)
+
+    return from_firm_geodesic_distance, from_firm_geodesic_centrality, from_bound_geodesic_distance, from_bound_geodesic_centrality
 
 def isotrophic_remesh(mesh, filename, target_length):
     # Changing torch.tensors to np.arrays.
@@ -92,6 +149,15 @@ def save_cloud(points, filename):
 
     # Saving mesh on filename.
     ms.save_current_mesh(filename)
+
+def get_cotan_matrix(mesh):
+    vertices = mesh.vertices.detach().cpu().numpy()
+    faces = mesh.faces.detach().cpu().numpy()
+
+    mass = igl.massmatrix(vertices, faces, igl.MASSMATRIX_TYPE_VORONOI).diagonal()
+    cot = igl.cotmatrix(vertices, faces).toarray()
+
+    return mass, cot
 
 def edge_connectivity(face_matrix):
     # Initializing edge lists.

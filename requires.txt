@@ -1,7 +1,9 @@
 python=3.8.12
-pytorch=1.10.0+cu102
 numpy=1.20.3
-pandas=1.1.3
+pandas=1.2.4
+pytorch=1.10.2+cu102 (pytorch=1.10.2)
 
 pymeshlab: pip3 install pymeshlab
+pytorch_geometric: conda install pyg -c pyg -c conda-forge
+igl: conda install -c conda-forge igl
 wandb: pip install wandb
