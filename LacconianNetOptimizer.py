@@ -31,7 +31,6 @@ class LacconianNetOptimizer:
 
         # Initializing net model.
         self.model = DGCNNDisplacerNet(self.initial_mesh.input_features.shape[1], no_knn).to(self.device)
-        print(self.model)
 
         # Building optimizer.
         # self.optimizer = torch.optim.Adam([ self.model.parameters ], lr=lr)
