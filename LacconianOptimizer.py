@@ -1,6 +1,5 @@
 import torch
 import time
-import os
 from LacconianCalculus import LacconianCalculus
 from LaplacianSmoothing import LaplacianSmoothing
 from NormalConsistency import NormalConsistency
