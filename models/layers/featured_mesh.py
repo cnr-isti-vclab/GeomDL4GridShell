@@ -2,12 +2,12 @@ import torch
 import warnings
 from models.layers.mesh import Mesh
 from torch.nn.functional import normalize
-from utils import extract_apss_principal_curvatures, extract_geodesic_distances, get_cotan_matrix, save_mesh
+from utils import extract_apss_principal_curvatures, extract_geodesic_distances, get_cotan_matrix
 
 class FeaturedMesh(Mesh):
 
     def __init__(self, file, vertices=None, faces=None, device='cpu'):
-        super().__init__(file, vertices, faces, device)
+        super(FeaturedMesh, self).__init__(file, vertices, faces, device)
         self.file = file
 
     def compute_mesh_input_features(self):
