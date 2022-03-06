@@ -41,8 +41,8 @@ class FeaturedMesh(Mesh):
         feature_list.append(geodetic_distance_bound)
         feature_list.append(geodetic_centrality_bound)
 
-        # input_features[:, 12:32]: first 20 laplacian eigenvectors.
-        eigenvectors = self.compute_laplacian_eigs(20)
+        # input_features[:, 12:16]: first 4 laplacian eigenvectors.
+        eigenvectors = self.compute_laplacian_eigs(4)
         feature_list.append(eigenvectors)
 
         self.input_features = torch.cat(feature_list, dim=1) 
