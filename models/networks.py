@@ -42,3 +42,9 @@ class DGCNNDisplacerNet(torch.nn.Module):
         # Processing dgcnn_out via shared mlp.
         return self.mlp(reduced_dgcnn_out)
 
+    @staticmethod
+    def uniform_weight_init(m):
+        if isinstance(m, torch.nn.Linear):
+            torch.nn.init.uniform_(m.weight, -0.05, 0.05)
+            m.bias.data.fill_(0.)
+
