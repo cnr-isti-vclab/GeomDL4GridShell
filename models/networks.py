@@ -18,13 +18,13 @@ class DGCNNDisplacerNet(torch.nn.Module):
             setattr(self, 'layer_' + str(layer + 2), DGCNNLayer(out_channels_list[layer], out_channels_list[layer + 1], k, aggr))
 
         # Shared mlp.
-        self.mlp = Sequential(  Linear(input_channels + sum(out_channels_list), 128),
+        self.mlp = Sequential(  Linear(input_channels + sum(out_channels_list), 512),
                                 ReLU(),
-                                Linear(128, 32),
+                                Linear(512, 32),
                                 ReLU(),
                                 Linear(32, 3)   )
 
-    def forward(self, x):
+    def forward(self, x, mask):
         # List of dgcnn layer outputs.
         out_list = [x]
 
@@ -36,6 +36,9 @@ class DGCNNDisplacerNet(torch.nn.Module):
         # Chaining all layer outputs.
         dgcnn_out = torch.cat(out_list, dim=1)
 
+        # Removing constrainted vertices from deep feature tensor.
+        reduced_dgcnn_out = dgcnn_out[mask, :]
+
         # Processing dgcnn_out via shared mlp.
-        return self.mlp(dgcnn_out)
+        return self.mlp(reduced_dgcnn_out)
 
