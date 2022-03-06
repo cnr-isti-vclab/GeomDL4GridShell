@@ -79,6 +79,12 @@ class LacconianOptimizer:
         # Initializing best loss.
         best_loss = torch.tensor(float('inf'), device=self.device)
 
+        # Saving initial mesh with structural data.
+        if save:
+            filename = save_prefix + save_label + '_start.ply'
+            quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
+            save_mesh(self.initial_mesh, filename, v_quality=quality.unsqueeze(1))
+
         # Saving not smoothed point cloud, if requested
         if hasattr(self, 'normal_consistency') and see_not_smoothed and save:
             if self.normal_consistency.not_smoothed_points.shape[0] != 0:
@@ -111,13 +117,6 @@ class LacconianOptimizer:
             # Keeping max vertex displacement norm per iteration.
             max_displacement_norm = torch.max(torch.norm(offset, p=2, dim=1))
             log_dict['max_displacement_norm'] = max_displacement_norm
-
-            # Saving current iteration mesh if requested.
-            if current_iteration % save_interval == 0:
-                if save:
-                    filename = save_prefix + save_label + '_' + str(current_iteration) + '.ply'
-                    quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
-                    save_mesh(iteration_mesh, filename, v_quality=quality.unsqueeze(1))
 
             # Computing loss by summing components.
             loss = 0
@@ -154,6 +153,13 @@ class LacconianOptimizer:
             # Displaying loss if requested.
             if display_interval != -1 and current_iteration % display_interval == 0:
                 print('*********** Iteration: ', current_iteration, ' Loss: ', loss, '***********')
+
+            # Saving current iteration mesh if requested.
+            if current_iteration % save_interval == 0:
+                if save:
+                    filename = save_prefix + save_label + '_' + str(current_iteration) + '.ply'
+                    quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
+                    save_mesh(iteration_mesh, filename, v_quality=quality.unsqueeze(1))
 
             # Keeping data if loss is best.
             if loss < best_loss:

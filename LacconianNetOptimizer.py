@@ -40,6 +40,12 @@ class LacconianNetOptimizer:
         # Initializing best loss.
         best_loss = torch.tensor(float('inf'), device=self.device)
 
+        # Saving initial mesh with structural data.
+        if save:
+            filename = save_prefix + save_label + '_start.ply'
+            quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
+            save_mesh(self.initial_mesh, filename, v_quality=quality.unsqueeze(1))
+
         for current_iteration in range(n_iter):
             iter_start = time.time()
 
@@ -47,12 +53,15 @@ class LacconianNetOptimizer:
             self.optimizer.zero_grad(set_to_none=True)
 
             # Computing mesh displacements via DGCNNNDisplacerNet.
-            displacements = self.model(self.initial_mesh.input_features[self.lacconian_calculus.non_constrained_vertices, :])
+            displacements = self.model(self.initial_mesh.input_features, self.lacconian_calculus.non_constrained_vertices)
+            offset = torch.zeros(self.initial_mesh.vertices.shape[0], 3, device=self.device)
+            offset[self.lacconian_calculus.non_constrained_vertices, :] = displacements
 
             # Generating current iteration displaced mesh.
-            offset = torch.zeros(self.initial_mesh.vertices.shape, device=self.device)
-            offset[self.lacconian_calculus.non_constrained_vertices, :] = displacements
             iteration_mesh = self.initial_mesh.update_verts(offset)
+
+            # Computing loss.
+            loss = self.lacconian_calculus(iteration_mesh, self.loss_type)
 
             # Saving current iteration mesh if requested.
             if current_iteration % save_interval == 0:
@@ -60,9 +69,6 @@ class LacconianNetOptimizer:
                     filename = save_prefix + save_label + '_' + str(current_iteration) + '.ply'
                     quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
                     save_mesh(iteration_mesh, filename, v_quality=quality.unsqueeze(1))
-
-            # Computing loss.
-            loss = self.lacconian_calculus(iteration_mesh, self.loss_type)
 
             # Displaying loss if requested.
             if display_interval != -1 and current_iteration % display_interval == 0:
