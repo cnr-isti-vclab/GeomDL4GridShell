@@ -1,6 +1,6 @@
 from turtle import forward
 import torch
-from torch.nn import Sequential,Linear, ReLU
+from torch.nn import Sequential,Linear, ReLU, Softplus
 from models.layers.dgcnn_layer import DGCNNLayer
 
 class DGCNNDisplacerNet(torch.nn.Module):
@@ -20,11 +20,11 @@ class DGCNNDisplacerNet(torch.nn.Module):
         # Shared mlp.
         self.mlp = Sequential(  Linear(input_channels + sum(out_channels_list), 512),
                                 ReLU(),
-                                Linear(512, 32),
+                                Linear(512, 256),
                                 ReLU(),
-                                Linear(32, 3)   )
+                                Linear(256, 3)  )
 
-    def forward(self, x, mask):
+    def forward(self, x):
         # List of dgcnn layer outputs.
         out_list = [x]
 
@@ -36,15 +36,12 @@ class DGCNNDisplacerNet(torch.nn.Module):
         # Chaining all layer outputs.
         dgcnn_out = torch.cat(out_list, dim=1)
 
-        # Removing constrainted vertices from deep feature tensor.
-        reduced_dgcnn_out = dgcnn_out[mask, :]
-
         # Processing dgcnn_out via shared mlp.
-        return self.mlp(reduced_dgcnn_out)
+        return self.mlp(dgcnn_out)
 
     @staticmethod
-    def uniform_weight_init(m):
+    def weight_init(m):
         if isinstance(m, torch.nn.Linear):
-            torch.nn.init.uniform_(m.weight, -0.05, 0.05)
+            torch.nn.init.uniform_(m.weight, -1e-4, 1e-4)
             m.bias.data.fill_(0.)
 
