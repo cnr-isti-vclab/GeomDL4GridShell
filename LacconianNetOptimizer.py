@@ -33,11 +33,14 @@ class LacconianNetOptimizer:
         self.model = DGCNNDisplacerNet(self.initial_mesh.input_features.shape[1], no_knn).to(self.device)
 
         # Initializing model weights.
-        self.model.apply(self.model.uniform_weight_init)
+        # self.model.apply(self.model.weight_init)
 
         # Building optimizer.
         # self.optimizer = torch.optim.Adam([ self.model.parameters ], lr=lr)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=self.momentum)
+
+        # Building lr decay scheduler.
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, factor=0.5, patience=15, verbose=True)
 
     def optimize(self, n_iter, save, save_interval, display_interval, save_label, take_times, save_prefix=''):
         # Initializing best loss.
@@ -56,15 +59,19 @@ class LacconianNetOptimizer:
             self.optimizer.zero_grad(set_to_none=True)
 
             # Computing mesh displacements via DGCNNNDisplacerNet.
-            displacements = self.model(self.initial_mesh.input_features, self.lacconian_calculus.non_constrained_vertices)
+            displacements = self.model(self.initial_mesh.input_features)
             offset = torch.zeros(self.initial_mesh.vertices.shape[0], 3, device=self.device)
-            offset[self.lacconian_calculus.non_constrained_vertices, :] = displacements
+            offset[self.lacconian_calculus.non_constrained_vertices, :] = displacements[self.lacconian_calculus.non_constrained_vertices]
+
+            # Boundary penalty term.
+            constrained_vertices = torch.logical_not(self.lacconian_calculus.non_constrained_vertices)
+            boundary_penalty = torch.mean(torch.norm(displacements[constrained_vertices], dim=1))
 
             # Generating current iteration displaced mesh.
             iteration_mesh = self.initial_mesh.update_verts(offset)
 
             # Computing loss.
-            loss = self.lacconian_calculus(iteration_mesh, self.loss_type)
+            loss = self.lacconian_calculus(iteration_mesh, self.loss_type) + boundary_penalty
 
             # Saving current iteration mesh if requested.
             if current_iteration % save_interval == 0:
@@ -91,6 +98,7 @@ class LacconianNetOptimizer:
             loss.backward()
             back_end = time.time()
             self.optimizer.step()
+            self.scheduler.step(loss)
 
             # Deleting grad history in involved tensors.
             self.lacconian_calculus.clean_attributes()
