@@ -63,15 +63,20 @@ class LacconianNetOptimizer:
             offset = torch.zeros(self.initial_mesh.vertices.shape[0], 3, device=self.device)
             offset[self.lacconian_calculus.non_constrained_vertices, :] = displacements[self.lacconian_calculus.non_constrained_vertices]
 
-            # Boundary penalty term.
-            constrained_vertices = torch.logical_not(self.lacconian_calculus.non_constrained_vertices)
-            boundary_penalty = torch.mean(torch.norm(displacements[constrained_vertices], dim=1))
-
             # Generating current iteration displaced mesh.
             iteration_mesh = self.initial_mesh.update_verts(offset)
 
-            # Computing loss.
-            loss = self.lacconian_calculus(iteration_mesh, self.loss_type) + boundary_penalty
+            # Computing structural loss.
+            structural_loss = self.lacconian_calculus(iteration_mesh, self.loss_type)
+
+            # Computing boundary penalty term.
+            constrained_vertices = torch.logical_not(self.lacconian_calculus.non_constrained_vertices)
+            boundary_penalty = torch.mean(torch.norm(displacements[constrained_vertices], dim=1))
+            with torch.no_grad():
+                penalty_scale = 0.1 * structural_loss / boundary_penalty
+
+            # Summing loss components.
+            loss = structural_loss + penalty_scale * boundary_penalty
 
             # Saving current iteration mesh if requested.
             if current_iteration % save_interval == 0:
