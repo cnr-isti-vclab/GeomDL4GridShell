@@ -288,7 +288,7 @@ class LacconianCalculus:
             raise RuntimeError("self.beam_model_solve() method not called yet.")
 
         # Updating mesh vertices.
-        stressed_mesh = self.initial_mesh.update_verts(self.initial_mesh.vertices + self.vertex_deformations[:, :int(DOF/2)])
+        stressed_mesh = self.initial_mesh.update_verts(self.vertex_deformations[:, :int(DOF/2)])
 
         return stressed_mesh
 
@@ -300,6 +300,5 @@ class LacconianCalculus:
 #############################################################################################################
 #  TEST LacconianCalculus.py ###
 if __name__ == '__main__':
-    lc = LacconianCalculus(file='meshes/casestudy_tens.ply', device='cpu')
-    stressed_mesh = lc.stress_mesh()
-    lc.save_grid_shell(stressed_mesh)
+    lc = LacconianCalculus(file='meshes/twoSpheres.ply', device='cpu')
+    lc.save_grid_shell(lc.initial_mesh)
