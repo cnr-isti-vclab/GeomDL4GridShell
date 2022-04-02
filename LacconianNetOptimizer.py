@@ -103,7 +103,7 @@ class LacconianNetOptimizer:
             loss.backward()
             back_end = time.time()
             self.optimizer.step()
-            self.scheduler.step(loss)
+            # self.scheduler.step(loss)
 
             # Deleting grad history in involved tensors.
             self.lacconian_calculus.clean_attributes()
