@@ -31,15 +31,15 @@ class FeaturedMesh(Mesh):
         # input_features[:, 9]: geodesic centrality (i.e mean of geodetic distances) from firm vertices;
         # input_features[:, 10]: geodesic distance (i.e min geodetic distance) from mesh boundary;
         # input_features[:, 11]: geodesic centrality (i.e mean of geodetic distances) from mesh boundary.
-        geodetic_distance_firm, geodetic_centrality_firm, geodetic_distance_bound, geodetic_centrality_bound = extract_geodesic_distances(self.file)
-        geodetic_distance_firm = torch.from_numpy(geodetic_distance_firm).to(self.device).unsqueeze(1)
-        geodetic_centrality_firm = torch.from_numpy(geodetic_centrality_firm).to(self.device).unsqueeze(1)
-        geodetic_distance_bound = torch.from_numpy(geodetic_distance_bound).to(self.device).unsqueeze(1)
-        geodetic_centrality_bound = torch.from_numpy(geodetic_centrality_bound).to(self.device).unsqueeze(1)
-        feature_list.append(geodetic_distance_firm)
-        feature_list.append(geodetic_centrality_firm)
-        feature_list.append(geodetic_distance_bound)
-        feature_list.append(geodetic_centrality_bound)
+        geodesic_distance_firm, geodesic_centrality_firm, geodesic_distance_bound, geodesic_centrality_bound = extract_geodesic_distances(self.file)
+        geodesic_distance_firm = torch.from_numpy(geodetic_distance_firm).to(self.device).unsqueeze(1)
+        geodesic_centrality_firm = torch.from_numpy(geodetic_centrality_firm).to(self.device).unsqueeze(1)
+        geodesic_distance_bound = torch.from_numpy(geodetic_distance_bound).to(self.device).unsqueeze(1)
+        geodesic_centrality_bound = torch.from_numpy(geodetic_centrality_bound).to(self.device).unsqueeze(1)
+        # feature_list.append(geodesic_distance_firm)
+        # feature_list.append(geodesic_centrality_firm)
+        # feature_list.append(geodesic_distance_bound)
+        # feature_list.append(geodesic_centrality_bound)
 
         # input_features[:, 12:16]: first 4 laplacian eigenvectors.
         eigenvectors = self.compute_laplacian_eigs(4)
