@@ -73,7 +73,7 @@ class LacconianNetOptimizer:
             constrained_vertices = torch.logical_not(self.lacconian_calculus.non_constrained_vertices)
             boundary_penalty = torch.mean(torch.norm(displacements[constrained_vertices], dim=1))
             with torch.no_grad():
-                penalty_scale = 0.1 * structural_loss / boundary_penalty
+                penalty_scale = 0.15 * structural_loss / boundary_penalty
 
             # Summing loss components.
             loss = structural_loss + penalty_scale * boundary_penalty
