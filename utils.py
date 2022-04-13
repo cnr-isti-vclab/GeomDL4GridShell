@@ -178,3 +178,8 @@ def edge_connectivity(face_matrix):
         edge_per_face.append(current_face_list)
 
     return np.array(edge_list), np.array(edge_per_face)
+
+def export_vector(v, filename):
+    # Changing torch.tensors to np.arrays.
+    v = np.float64(v.detach().cpu().numpy())
+    np.savetxt(filename, v, delimiter=',')

@@ -4,7 +4,7 @@ from LacconianCalculus import LacconianCalculus
 from models.layers.featured_mesh import FeaturedMesh
 from models.networks import DGCNNDisplacerNet
 from options.net_optimizer_options import NetOptimizerOptions
-from utils import save_mesh
+from utils import save_mesh, export_vector
 
 
 class LacconianNetOptimizer:
@@ -48,9 +48,11 @@ class LacconianNetOptimizer:
 
         # Saving initial mesh with structural data.
         if save:
-            filename = save_prefix + save_label + '_start.ply'
+            filename = save_prefix + '[START]' + save_label + '.ply'
             quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
             save_mesh(self.initial_mesh, filename, v_quality=quality.unsqueeze(1))
+            export_vector(quality, save_prefix + '[START]load_' + save_label + '.csv')
+            export_vector(quality, save_prefix + '[START]energy_' + save_label + '.csv')
 
         for current_iteration in range(n_iter):
             iter_start = time.time()
@@ -96,7 +98,8 @@ class LacconianNetOptimizer:
 
                 if save:
                     best_mesh = iteration_mesh
-                    best_quality = quality
+                    best_displacements = quality
+                    best_energy = self.lacconian_calculus.beam_energy
 
             # Computing gradients and updating optimizer
             back_start = time.time()
@@ -118,7 +121,9 @@ class LacconianNetOptimizer:
         # Saving best mesh, if mesh saving is enabled.
         if save and n_iter > 0:
             filename = save_prefix + '[BEST]' + save_label + '_' + str(best_iteration) + '.ply'
-            save_mesh(best_mesh, filename, v_quality=best_quality.unsqueeze(1))
+            save_mesh(best_mesh, filename, v_quality=best_displacements.unsqueeze(1))
+            export_vector(best_displacements, '[BEST]load_' + save_label + str(best_iteration) + '.csv')
+            export_vector(best_energy, '[BEST]energy_' + save_label + str(best_iteration) + '.csv')
 
 
 if __name__ == '__main__':
