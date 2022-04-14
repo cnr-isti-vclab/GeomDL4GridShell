@@ -52,7 +52,7 @@ class LacconianNetOptimizer:
             quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
             save_mesh(self.initial_mesh, filename, v_quality=quality.unsqueeze(1))
             export_vector(quality, save_prefix + '[START]load_' + save_label + '.csv')
-            export_vector(quality, save_prefix + '[START]energy_' + save_label + '.csv')
+            export_vector(self.lacconian_calculus.beam_energy, save_prefix + '[START]energy_' + save_label + '.csv')
 
         for current_iteration in range(n_iter):
             iter_start = time.time()
