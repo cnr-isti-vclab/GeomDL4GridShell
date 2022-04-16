@@ -1,6 +1,6 @@
 import torch
 from models.layers.mesh import Mesh
-from utils import save_mesh
+from utils import save_mesh, export_vector
 
 DOF = 6     # degrees of freedom per vertex
 
@@ -251,7 +251,7 @@ class LacconianCalculus:
     def compute_beam_force_and_energy(self, mesh):
         # edge_dofs_deformations aggregates vertex_deformation in a edge-endpoints-wise manner: (#edges, 2*DOF) torch.tensor
         edge_dofs_deformations = self.vertex_deformations[self.endpoints_dofs_matrix]
-
+        
         #############################################################################################################################
         # Computing resulting forces at nodes via 'batched' matrix multiplication @.
         # Some details:
@@ -300,5 +300,8 @@ class LacconianCalculus:
 #############################################################################################################
 #  TEST LacconianCalculus.py ###
 if __name__ == '__main__':
-    lc = LacconianCalculus(file='meshes/twoSpheres.ply', device='cpu')
+    lc = LacconianCalculus(file='meshes/casestudy_compr.ply', device='cpu')
     lc.save_grid_shell(lc.initial_mesh)
+    export_vector(torch.norm(lc.vertex_deformations[:, :3], dim=1), 'load.csv')
+    export_vector(lc.initial_mesh.edges, 'edges.csv')
+    export_vector(lc.beam_energy, 'energy.csv')
