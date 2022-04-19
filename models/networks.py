@@ -26,18 +26,31 @@ class DGCNNDisplacerNet(torch.nn.Module):
 
     def forward(self, x):
         # List of dgcnn layer outputs.
-        out_list = [x]
+        self.out_list = [x]
 
         # Applying consecutive dgcnn layers.
         for layer in range(1, self.no_dgcnn_layers + 1):
             current_dgcnn_layer = getattr(self, 'layer_' + str(layer))
-            out_list.append(current_dgcnn_layer(out_list[-1]))
+            self.out_list.append(current_dgcnn_layer(self.out_list[-1]))
 
         # Chaining all layer outputs.
-        dgcnn_out = torch.cat(out_list, dim=1)
+        dgcnn_out = torch.cat(self.out_list, dim=1)
 
         # Processing dgcnn_out via shared mlp.
         return self.mlp(dgcnn_out)
+
+    def get_knn(self, x, k, target_idx):
+        # Computing layer results.
+        self.forward(x)
+
+        # Initializing output lists.
+        knn_positions = []
+
+        for layer in self.out_list:
+            topk = torch.topk(torch.norm(layer[target_idx] - layer, dim=1), k=k, largest=False)
+            knn_positions.append(topk.indices)
+
+        return knn_positions
 
     @staticmethod
     def weight_init(m):
