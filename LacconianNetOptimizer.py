@@ -4,7 +4,7 @@ from LacconianCalculus import LacconianCalculus
 from models.layers.featured_mesh import FeaturedMesh
 from models.networks import DGCNNDisplacerNet
 from options.net_optimizer_options import NetOptimizerOptions
-from utils import save_mesh, export_vector
+from utils import save_mesh, save_cloud, export_vector
 
 
 class LacconianNetOptimizer:
@@ -17,20 +17,21 @@ class LacconianNetOptimizer:
         self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.initial_mesh, beam_have_load=beam_have_load)
         self.lr = lr
         self.momentum = momentum
+        self.no_knn = no_knn
 
         # Setting 10 decimal digits tensor display.
         torch.set_printoptions(precision=10)
 
         self.device = torch.device(device)
 
-        self.make_optimizer(no_knn)
+        self.make_optimizer()
 
-    def make_optimizer(self, no_knn):
+    def make_optimizer(self):
         # Computing initial_mesh input features.
         self.initial_mesh.compute_mesh_input_features()
 
         # Initializing net model.
-        self.model = DGCNNDisplacerNet(self.initial_mesh.input_features.shape[1], no_knn).to(self.device)
+        self.model = DGCNNDisplacerNet(self.initial_mesh.input_features.shape[1], self.no_knn).to(self.device)
 
         # Initializing model weights.
         # self.model.apply(self.model.weight_init)
@@ -121,10 +122,19 @@ class LacconianNetOptimizer:
         
         # Saving best mesh, if mesh saving is enabled.
         if save and n_iter > 0:
+            v_pos = 54
             filename = save_prefix + '[BEST]' + save_label + '_' + str(best_iteration) + '.ply'
             save_mesh(best_mesh, filename, v_quality=best_displacements.unsqueeze(1))
             export_vector(best_displacements, '[BEST]load_' + save_label + str(best_iteration) + '.csv')
             export_vector(best_energy, '[BEST]energy_' + save_label + str(best_iteration) + '.csv')
+
+            knn_positions = self.model.get_knn(self.initial_mesh.input_features, k=self.no_knn, target_idx=v_pos)
+            color = torch.tensor([0., 0., 1., 1.]).repeat(self.no_knn, 1)
+            color[0, 0] = 1.
+            color[0, 2] = 0.
+            for idx, layer in enumerate(knn_positions):
+                filename = save_prefix + 'knn' + save_label + '_layer' + str(idx) + '.ply'
+                save_cloud(self.initial_mesh.vertices[layer], filename, color)
 
 
 if __name__ == '__main__':
