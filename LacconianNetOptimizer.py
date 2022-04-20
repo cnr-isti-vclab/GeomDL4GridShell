@@ -100,7 +100,7 @@ class LacconianNetOptimizer:
 
                 if save:
                     best_mesh = iteration_mesh
-                    best_displacements = quality
+                    best_displacements = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
                     best_energy = self.lacconian_calculus.beam_energy
 
             # Computing gradients and updating optimizer
