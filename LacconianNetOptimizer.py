@@ -76,8 +76,8 @@ class LacconianNetOptimizer:
             # Computing boundary penalty term.
             constrained_vertices = torch.logical_not(self.lacconian_calculus.non_constrained_vertices)
             boundary_penalty = torch.mean(torch.norm(displacements[constrained_vertices], dim=1))
-            with torch.no_grad():
-                penalty_scale = 0.15 * structural_loss / boundary_penalty
+            if current_iteration == 0:
+                penalty_scale = float(0.3 * structural_loss / boundary_penalty)
 
             # Summing loss components.
             loss = structural_loss + penalty_scale * boundary_penalty
@@ -91,7 +91,7 @@ class LacconianNetOptimizer:
 
             # Displaying loss if requested.
             if display_interval != -1 and current_iteration % display_interval == 0:
-                print('*********** Iteration: ', current_iteration, ' Loss: ', loss, '***********')
+                print('*********** Iteration: ', current_iteration, ' Structural loss: ', structural_loss, '***********')
 
             # Keeping data if loss is best.
             if loss < best_loss:
