@@ -31,7 +31,7 @@ class LacconianNetOptimizer:
         self.initial_mesh.compute_mesh_input_features()
 
         # Initializing net model.
-        self.model = GATv2DisplacerNet(self.initial_mesh.input_features.shape[1], self.no_knn).to(self.device)
+        self.model = DGCNNDisplacerNet(self.no_knn).to(self.device)
 
         # Initializing model weights.
         # self.model.apply(self.model.weight_init)
