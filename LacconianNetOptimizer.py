@@ -2,7 +2,7 @@ import torch
 import time
 from LacconianCalculus import LacconianCalculus
 from models.layers.featured_mesh import FeaturedMesh
-from models.networks import DGCNNDisplacerNet
+from models.networks import DGCNNDisplacerNet, GATv2DisplacerNet
 from options.net_optimizer_options import NetOptimizerOptions
 from utils import save_mesh, save_cloud, export_vector
 
@@ -31,7 +31,7 @@ class LacconianNetOptimizer:
         self.initial_mesh.compute_mesh_input_features()
 
         # Initializing net model.
-        self.model = DGCNNDisplacerNet(self.initial_mesh.input_features.shape[1], self.no_knn).to(self.device)
+        self.model = GATv2DisplacerNet(self.initial_mesh.input_features.shape[1], self.no_knn).to(self.device)
 
         # Initializing model weights.
         # self.model.apply(self.model.weight_init)
