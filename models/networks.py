@@ -1,28 +1,29 @@
 import torch
-from torch.nn import Sequential,Linear, ReLU
+from torch.nn import Sequential, ReLU
+from torch_geometric.nn import Linear
 from models.layers.dgcnn_layer import DGCNNLayer
 from models.layers.gatv2_layer import GATv2Layer
 
 class DGCNNDisplacerNet(torch.nn.Module):
 
-    def __init__(self, input_channels, k, aggr='mean', out_channels_list=[64, 128, 256, 512]):
+    def __init__(self, k, aggr='mean', out_channels_list=[64, 128, 256, 512]):
         super(DGCNNDisplacerNet, self).__init__()
 
         self.no_dgcnn_layers = len(out_channels_list)
 
         # First DGCNN layer.
-        self.layer_1 = DGCNNLayer(input_channels, out_channels_list[0], k, aggr)
+        self.layer_1 = DGCNNLayer(out_channels_list[0], k, aggr)
 
         # Following DGCNN layers.
         for layer in range(len(out_channels_list) - 1):
-            setattr(self, 'layer_' + str(layer + 2), DGCNNLayer(out_channels_list[layer], out_channels_list[layer + 1], k, aggr))
+            setattr(self, 'layer_' + str(layer + 2), DGCNNLayer(out_channels_list[layer + 1], k, aggr))
 
         # Shared mlp.
-        self.mlp = Sequential(  Linear(input_channels + sum(out_channels_list), 512),
+        self.mlp = Sequential(  Linear(-1, 512),
                                 ReLU(),
-                                Linear(512, 256),
+                                Linear(-1, 256),
                                 ReLU(),
-                                Linear(256, 3)  )
+                                Linear(-1, 3)  )
 
     def forward(self, x):
         # List of dgcnn layer outputs.
@@ -62,24 +63,24 @@ class DGCNNDisplacerNet(torch.nn.Module):
 
 class GATv2DisplacerNet(torch.nn.Module):
 
-    def __init__(self, input_channels, k, out_channels_list=[64, 128, 256, 512]):
+    def __init__(self, k, out_channels_list=[64, 128, 256, 512]):
         super(GATv2DisplacerNet, self).__init__()
 
         self.no_gat_layers = len(out_channels_list)
 
         # First GATv2 layer.
-        self.layer_1 = GATv2Layer(input_channels, out_channels_list[0], k)
+        self.layer_1 = GATv2Layer(out_channels_list[0], k)
 
         # Following DGCNN layers.
         for layer in range(len(out_channels_list) - 1):
-            setattr(self, 'layer_' + str(layer + 2), GATv2Layer(out_channels_list[layer], out_channels_list[layer + 1], k))
+            setattr(self, 'layer_' + str(layer + 2), GATv2Layer(out_channels_list[layer + 1], k))
 
         # Shared mlp.
-        self.mlp = Sequential(  Linear(input_channels + sum(out_channels_list), 512),
+        self.mlp = Sequential(  Linear(-1, 512),
                                 ReLU(),
-                                Linear(512, 256),
+                                Linear(-1, 256),
                                 ReLU(),
-                                Linear(256, 3)  )
+                                Linear(-1, 3)  )
 
     def forward(self, x):
         # List of dgcnn layer outputs.
