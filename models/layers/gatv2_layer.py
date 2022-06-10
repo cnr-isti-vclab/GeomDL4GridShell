@@ -4,11 +4,11 @@ from torch_geometric.nn.pool import knn_graph
 
 class GATv2Layer(torch.nn.Module):
 
-    def __init__(self, in_channels, out_channels, k):
+    def __init__(self, out_channels, k):
         super(GATv2Layer, self).__init__()
 
         self.k = k
-        self.gatv2 = GATv2Conv(in_channels=in_channels, out_channels=out_channels)
+        self.gatv2 = GATv2Conv(in_channels=-1, out_channels=out_channels)
 
     def forward(self, x):
         edge_index = knn_graph(x, self.k, loop=False)

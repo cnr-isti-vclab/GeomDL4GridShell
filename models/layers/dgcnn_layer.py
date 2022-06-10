@@ -1,13 +1,13 @@
 import torch
-from torch.nn import Sequential, Linear, ReLU
-from torch_geometric.nn import DynamicEdgeConv
+from torch.nn import Sequential, ReLU
+from torch_geometric.nn import Linear, DynamicEdgeConv
 
 class DGCNNLayer(torch.nn.Module):
 
-    def __init__(self, in_channels, out_channels, k, aggr='mean'):
+    def __init__(self, out_channels, k, aggr='mean'):
         super(DGCNNLayer, self).__init__()
 
-        mlp = Sequential(   Linear(2 * in_channels, out_channels),
+        mlp = Sequential(   Linear(-1, out_channels),
                             ReLU(), 
                             Linear(out_channels, out_channels)  )
 
