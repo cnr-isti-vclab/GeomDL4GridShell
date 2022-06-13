@@ -22,8 +22,8 @@ class FeaturedMesh(Mesh):
 
         # input_features[:, 6:8]: principal curvatures.
         k1, k2  = extract_apss_principal_curvatures(self.file)
-        k1 = torch.from_numpy(k1).to(self.device).unsqueeze(1)
-        k2 = torch.from_numpy(k2).to(self.device).unsqueeze(1)
+        k1 = torch.from_numpy(k1).to(self.device)
+        k2 = torch.from_numpy(k2).to(self.device)
         feature_list.append(k1)
         feature_list.append(k2)
 
@@ -36,10 +36,10 @@ class FeaturedMesh(Mesh):
         geodesic_centrality_firm = torch.from_numpy(geodesic_centrality_firm).to(self.device).unsqueeze(1)
         geodesic_distance_bound = torch.from_numpy(geodesic_distance_bound).to(self.device).unsqueeze(1)
         geodesic_centrality_bound = torch.from_numpy(geodesic_centrality_bound).to(self.device).unsqueeze(1)
-        # feature_list.append(geodesic_distance_firm)
-        # feature_list.append(geodesic_centrality_firm)
-        # feature_list.append(geodesic_distance_bound)
-        # feature_list.append(geodesic_centrality_bound)
+        #feature_list.append(geodesic_distance_firm)
+        #feature_list.append(geodesic_centrality_firm)
+        #feature_list.append(geodesic_distance_bound)
+        #feature_list.append(geodesic_centrality_bound)
 
         # input_features[:, 12:16]: first 4 laplacian eigenvectors.
         eigenvectors = self.compute_laplacian_eigs(4)
