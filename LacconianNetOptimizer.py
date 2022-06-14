@@ -38,8 +38,8 @@ class LacconianNetOptimizer:
         optim_parameters = list(self.model.parameters())
 
         # Initializing feature transform layer, if requested.
-        if self.transform_in_features:
-            self.feature_transf = FeatureTransformLayer(self.initial_mesh.feature_mask, out_channels=16)
+        if self.transform_in_features == True:
+            self.feature_transf = FeatureTransformLayer(self.initial_mesh.feature_mask, out_channels=16).to(self.device)
             optim_parameters += list(self.feature_transf.parameters())
 
         # Initializing model weights.
@@ -76,7 +76,7 @@ class LacconianNetOptimizer:
             self.optimizer.zero_grad(set_to_none=True)
 
             # Computing mesh displacements via net model.
-            if self.transform_in_features:
+            if self.transform_in_features == True:
                 x = self.feature_transf(self.initial_mesh.input_features)
                 displacements = self.model(x)
             else:
