@@ -17,6 +17,8 @@ class NetOptimizerOptions:
         self.parser.add_argument('--beamload', dest='beam_have_load', action='store_true', default=False, help='If beams give load to verts or not')
         self.parser.add_argument('--itertimes', dest='take_times', action='store_true', default=False, help='If iteration and backward times are required or not')
         self.parser.add_argument('--knn', dest='no_knn', type=int, default=16, help='Number of nearest neighbors in dgcnn layers')
+        self.parser.add_argument('--transforminputfeatures', dest='transform_in_features', action='store_true', default='False')
+        self.parser.add_argument('--getloss', dest='get_loss', action='store_true', default='False')
 
     def parse(self):
         return self.parser.parse_args()
