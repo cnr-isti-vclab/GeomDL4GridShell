@@ -40,19 +40,6 @@ class DGCNNDisplacerNet(torch.nn.Module):
         # Processing dgcnn_out via shared mlp.
         return self.mlp(dgcnn_out)
 
-    def get_knn(self, x, k, target_idx):
-        # Computing layer results.
-        self.forward(x)
-
-        # Initializing output lists.
-        knn_positions = []
-
-        for layer in self.out_list:
-            topk = torch.topk(torch.norm(layer[target_idx] - layer, dim=1), k=k, largest=False)
-            knn_positions.append(topk.indices)
-
-        return knn_positions
-
     @staticmethod
     def weight_init(m):
         if isinstance(m, torch.nn.Linear):
@@ -96,17 +83,3 @@ class GATv2DisplacerNet(torch.nn.Module):
 
         # Processing dgcnn_out via shared mlp.
         return self.mlp(dgcnn_out)
-
-    def get_knn(self, x, k, target_idx):
-        # Computing layer results.
-        self.forward(x)
-
-        # Initializing output lists.
-        knn_positions = []
-
-        for layer in self.out_list:
-            topk = torch.topk(torch.norm(layer[target_idx] - layer, dim=1), k=k, largest=False)
-            knn_positions.append(topk.indices)
-
-        return knn_positions
-
