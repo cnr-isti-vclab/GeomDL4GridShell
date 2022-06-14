@@ -12,13 +12,16 @@ class FeaturedMesh(Mesh):
 
     def compute_mesh_input_features(self):
         feature_list = []
+        feature_mask = []
 
         # input_features[:, 0:3]: vertex coordinates.
         feature_list.append(self.vertices)
+        feature_mask.append([0, 1, 2])
 
         # input_features[:, 3:6]: vertex normals.
         self.compute_vertex_normals()
         feature_list.append(self.vertex_normals)
+        feature_mask.append([3, 4, 5])
 
         # input_features[:, 6:8]: principal curvatures.
         k1, k2  = extract_apss_principal_curvatures(self.file)
@@ -26,6 +29,7 @@ class FeaturedMesh(Mesh):
         k2 = torch.from_numpy(k2).to(self.device)
         feature_list.append(k1)
         feature_list.append(k2)
+        feature_mask.append([6, 7])
 
         # input_features[:, 8]: geodesic distance (i.e min geodetic distance) from firm vertices;
         # input_features[:, 9]: geodesic centrality (i.e mean of geodetic distances) from firm vertices;
@@ -44,8 +48,10 @@ class FeaturedMesh(Mesh):
         # input_features[:, 12:16]: first 4 laplacian eigenvectors.
         eigenvectors = self.compute_laplacian_eigs(4)
         feature_list.append(eigenvectors)
+        feature_mask.append([8, 9, 10, 11])
 
-        self.input_features = torch.cat(feature_list, dim=1) 
+        self.input_features = torch.cat(feature_list, dim=1)
+        self.feature_mask = feature_mask
 
     def compute_vertex_normals(self):
         ############################################################################################################
