@@ -34,7 +34,7 @@ class LacconianNetOptimizer:
         self.initial_mesh.compute_mesh_input_features()
 
         # Initializing net model.
-        self.model = DGCNNDisplacerNet(self.no_knn).to(self.device)
+        self.model = GATv2DisplacerNet(self.no_knn).to(self.device)
         optim_parameters = list(self.model.parameters())
 
         # Initializing feature transform layer, if requested.
@@ -75,7 +75,7 @@ class LacconianNetOptimizer:
             # Putting grads to None.
             self.optimizer.zero_grad(set_to_none=True)
 
-            # Computing mesh displacements via DGCNNNDisplacerNet.
+            # Computing mesh displacements via net model.
             if self.transform_in_features:
                 x = self.feature_transf(self.initial_mesh.input_features)
                 displacements = self.model(x)
