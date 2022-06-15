@@ -4,7 +4,7 @@ from torch_geometric.nn.pool import knn_graph
 
 class GATv2Layer(torch.nn.Module):
 
-    def __init__(self, out_channels, k, heads=5):
+    def __init__(self, out_channels, k, heads=3):
         super(GATv2Layer, self).__init__()
 
         self.k = k
