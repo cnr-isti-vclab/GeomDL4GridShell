@@ -9,7 +9,7 @@ class FeatureTransformLayer(torch.nn.Module):
         self.mask = mask
         self.no_blocks = len(mask)
 
-        # Initializing homogenization MLPs.
+        # Initializing MLPs.
         for block in range(self.no_blocks):
             setattr(self, 'mlp_' + str(block), Sequential(Linear(-1, out_channels), Tanh()))
 
