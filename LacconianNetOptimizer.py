@@ -2,15 +2,14 @@ import torch
 import time
 from LacconianCalculus import LacconianCalculus
 from models.layers.featured_mesh import FeaturedMesh
-from models.layers.feature_transform_layer import FeatureTransformLayer
-from models.networks import DGCNNDisplacerNet, GATv2DisplacerNet
+from models.networks import DisplacerNet
 from options.net_optimizer_options import NetOptimizerOptions
 from utils import save_mesh, save_cloud, export_vector
 
 
 class LacconianNetOptimizer:
 
-    def __init__(self, file, lr, momentum, device, beam_have_load, loss_type, no_knn, transform_in_features, get_loss):
+    def __init__(self, file, lr, momentum, device, beam_have_load, loss_type, no_knn, transform_in_features, get_loss, layer_mode):
         self.initial_mesh = FeaturedMesh(file=file, device=device)
         self.beam_have_load = beam_have_load
         self.device = device
@@ -21,6 +20,7 @@ class LacconianNetOptimizer:
         self.no_knn = no_knn
         self.transform_in_features = transform_in_features
         self.get_loss = get_loss
+        self.layer_mode = layer_mode
 
         # Setting 10 decimal digits tensor display.
         torch.set_printoptions(precision=10)
@@ -34,13 +34,11 @@ class LacconianNetOptimizer:
         self.initial_mesh.compute_mesh_input_features()
 
         # Initializing net model.
-        self.model = GATv2DisplacerNet(self.no_knn).to(self.device)
-        optim_parameters = list(self.model.parameters())
-
-        # Initializing feature transform layer, if requested.
         if self.transform_in_features == True:
-            self.feature_transf = FeatureTransformLayer(self.initial_mesh.feature_mask, out_channels=16).to(self.device)
-            optim_parameters += list(self.feature_transf.parameters())
+            mask = self.initial_mesh.feature_mask
+        else:
+            mask = None
+        self.model = DisplacerNet(self.no_knn, mode=self.layer_mode, in_feature_mask=mask).to(self.device)
 
         # Initializing model weights.
         # self.model.apply(self.model.weight_init)
@@ -51,7 +49,7 @@ class LacconianNetOptimizer:
 
         # Building optimizer.
         # self.optimizer = torch.optim.Adam([ self.model.parameters ], lr=lr)
-        self.optimizer = torch.optim.SGD(optim_parameters, lr=self.lr, momentum=self.momentum)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=self.momentum)
 
         # Building lr decay scheduler.
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, factor=0.5, patience=15, verbose=True)
@@ -76,11 +74,7 @@ class LacconianNetOptimizer:
             self.optimizer.zero_grad(set_to_none=True)
 
             # Computing mesh displacements via net model.
-            if self.transform_in_features == True:
-                x = self.feature_transf(self.initial_mesh.input_features)
-                displacements = self.model(x)
-            else:
-                displacements = self.model(self.initial_mesh.input_features)
+            displacements = self.model(self.initial_mesh.input_features)
             offset = torch.zeros(self.initial_mesh.vertices.shape[0], 3, device=self.device)
             offset[self.lacconian_calculus.non_constrained_vertices, :] = displacements[self.lacconian_calculus.non_constrained_vertices]
 
@@ -154,6 +148,6 @@ class LacconianNetOptimizer:
 if __name__ == '__main__':
     parser = NetOptimizerOptions()
     options = parser.parse()
-    lo = LacconianNetOptimizer(options.path, options.lr, options.momentum, options.device, options.beam_have_load, options.loss_type, options.no_knn, options.transform_in_features, options.get_loss)
+    lo = LacconianNetOptimizer(options.path, options.lr, options.momentum, options.device, options.beam_have_load, options.loss_type, options.no_knn, options.transform_in_features, options.get_loss, options.layer_mode)
     lo.optimize(options.n_iter, options.save, options.save_interval, options.display_interval, options.save_label, options.take_times)
 
