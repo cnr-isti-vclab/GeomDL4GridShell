@@ -94,9 +94,7 @@ class MultiDisplacerNet(torch.nn.Module):
     def forward(self, x):
         # Batch vector.
         no_vertices = len(x)
-        batch_vector = torch.kron(torch.arange(self.no_batches), torch.ones(no_vertices)).long()
-        if torch.cuda.is_available():
-            batch_vector = batch_vector.to('cuda')
+        batch_vector = torch.kron(torch.arange(self.no_batches), torch.ones(no_vertices)).long().to(next(self.parameters()).device)
         
         # Transforming input features to reach graph dimension.
         x = self.feature_transf(x)
