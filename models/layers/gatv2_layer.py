@@ -10,6 +10,6 @@ class GATv2Layer(torch.nn.Module):
         self.k = k
         self.gatv2 = GATv2Conv(in_channels=-1, out_channels=out_channels, heads=heads, concat=False)
 
-    def forward(self, x):
-        edge_index = knn_graph(x, self.k, loop=False)
+    def forward(self, x, batch=None):
+        edge_index = knn_graph(x, self.k, batch=batch, loop=False)
         return self.gatv2(x, edge_index)

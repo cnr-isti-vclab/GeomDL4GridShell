@@ -31,6 +31,7 @@ class FeaturedMesh(Mesh):
         feature_list.append(k2)
         feature_mask.append([6, 7])
 
+
         # input_features[:, 8]: geodesic distance (i.e min geodetic distance) from firm vertices;
         # input_features[:, 9]: geodesic centrality (i.e mean of geodetic distances) from firm vertices;
         # input_features[:, 10]: geodesic distance (i.e min geodetic distance) from mesh boundary;
