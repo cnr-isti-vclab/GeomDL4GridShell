@@ -117,3 +117,48 @@ class MultiDisplacerNet(torch.nn.Module):
         return self.mlp(out)
 
 
+class MultiMaxDisplacerNet(torch.nn.Module):
+    def __init__(self, k, in_feature_mask, out_channels_list=[256, 512, 512, 512], out_transf_channels=256):
+        super(MultiMaxDisplacerNet, self).__init__()
+
+        self.no_dgcnn_layers = len(out_channels_list)
+        self.out_transf_channels = out_transf_channels
+        self.no_batches = len(in_feature_mask)
+
+        # Feature transform layer
+        self.feature_transf = FeatureTransformLayer(mask=in_feature_mask, out_channels=out_transf_channels, activation='sigmoid')
+
+        # First layer.
+        self.layer_1 = GATv2Layer(out_channels_list[0], k)
+
+        # Following layers.
+        for layer in range(len(out_channels_list) - 1):
+            setattr(self, 'layer_' + str(layer + 2), GATv2Layer(out_channels_list[layer + 1], k))
+
+        # Shared mlp.
+        self.mlp = Sequential(  Linear(-1, 256),
+                                ReLU(),
+                                Linear(-1, 64),
+                                ReLU(),
+                                Linear(-1, 3)  )
+
+    def forward(self, x):
+        # Batch vector.
+        no_vertices = len(x)
+        batch_vector = torch.kron(torch.arange(self.no_batches), torch.ones(no_vertices)).long().to(next(self.parameters()).device)
+        
+        # Transforming input features to reach graph dimension.
+        x = self.feature_transf(x)
+        x = torch.cat(torch.split(x, self.out_transf_channels, dim=1), dim=0)
+
+        # List of layer outputs.
+        out_list = [x]
+
+        # Applying consecutive layers.
+        for layer in range(1, self.no_dgcnn_layers + 1):
+            current_layer = getattr(self, 'layer_' + str(layer))
+            out_list.append(current_layer(out_list[-1], batch_vector))
+
+        # Building model output.
+        out = torch.max(torch.stack(torch.split(torch.cat(out_list, dim=1), no_vertices, dim=0), dim=0), dim=0).values
+        return self.mlp(out)
