@@ -164,7 +164,7 @@ class MultiMaxDisplacerNet(torch.nn.Module):
         return self.mlp(out)
 
 class MultiMeanDisplacerNet(torch.nn.Module):
-    def __init__(self, k, in_feature_mask, out_channels_list=[1024, 1024, 1024, 1024], out_transf_channels=256):
+    def __init__(self, k, in_feature_mask, out_channels_list=[256, 512, 512, 512], out_transf_channels=256):
         super(MultiMeanDisplacerNet, self).__init__()
 
         self.no_dgcnn_layers = len(out_channels_list)
@@ -193,11 +193,11 @@ class MultiMeanDisplacerNet(torch.nn.Module):
         no_vertices = len(x)
         batch_vector = torch.kron(torch.arange(self.no_batches), torch.ones(no_vertices)).long().to(next(self.parameters()).device)
         
-        # Transforming input features.
-        x = self.feature_transf(x)
-
         # List of layer outputs.
         out_list = [x]
+
+        # Transforming input features.
+        x = self.feature_transf(x)
 
         # Changing input tensor to separate groups of features.
         x = torch.cat(torch.split(x, self.out_transf_channels, dim=1), dim=0)
