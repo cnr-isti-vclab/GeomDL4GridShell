@@ -2,7 +2,7 @@ import torch
 import time
 from LacconianCalculus import LacconianCalculus
 from models.layers.featured_mesh import FeaturedMesh
-from models.networks import DisplacerNet, MultiDisplacerNet
+from models.networks import DisplacerNet, MultiDisplacerNet, MultiMaxDisplacerNet
 from options.net_optimizer_options import NetOptimizerOptions
 from utils import save_mesh, save_cloud, export_vector
 
@@ -34,7 +34,7 @@ class LacconianNetOptimizer:
         self.initial_mesh.compute_mesh_input_features()
 
         # Initializing net model.
-        if self.transform_in_features == True or self.layer_mode == 'multi':
+        if self.transform_in_features == True or 'multi' in self.layer_mode:
             mask = self.initial_mesh.feature_mask
         else:
             mask = None
@@ -42,6 +42,8 @@ class LacconianNetOptimizer:
             self.model = DisplacerNet(self.no_knn, mode=self.layer_mode, in_feature_mask=mask).to(self.device)
         elif self.layer_mode == 'multi':
             self.model = MultiDisplacerNet(self.no_knn, mask).to(self.device)
+        elif self.layer_mode == 'multimax':
+            self.model = MultiMaxDisplacerNet(self.no_knn, mask).to(self.device)
 
         # Initializing model weights.
         # self.model.apply(self.model.weight_init)
