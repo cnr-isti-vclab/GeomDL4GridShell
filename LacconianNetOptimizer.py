@@ -25,6 +25,9 @@ class LacconianNetOptimizer:
         # Setting 10 decimal digits tensor display.
         torch.set_printoptions(precision=10)
 
+        # Setting randomization seed.
+        torch.manual_seed(42)
+
         self.device = torch.device(device)
 
         self.make_optimizer()
