@@ -1,6 +1,7 @@
 from turtle import forward
 import torch
 from torch.nn import Sequential, ReLU
+from torch_geometric.seed import seed_everything
 from torch_geometric.nn import Linear
 from models.layers.feature_transform_layer import FeatureTransformLayer
 from models.layers.dgcnn_layer import DGCNNLayer
@@ -13,6 +14,9 @@ class DisplacerNet(torch.nn.Module):
         self.mode = mode
 
         self.no_dgcnn_layers = len(out_channels_list)
+
+        # Setting seed.
+        seed_everything(42)
 
         # Feature transform layer, if requested.
         if in_feature_mask is not None:
@@ -74,6 +78,9 @@ class MultiDisplacerNet(torch.nn.Module):
         self.out_transf_channels = out_transf_channels
         self.no_batches = len(in_feature_mask)
 
+        # Setting seed.
+        seed_everything(42)
+
         # Feature transform layer
         self.feature_transf = FeatureTransformLayer(mask=in_feature_mask, out_channels=out_transf_channels)
 
@@ -125,6 +132,9 @@ class MultiMaxDisplacerNet(torch.nn.Module):
         self.out_transf_channels = out_transf_channels
         self.no_batches = len(in_feature_mask)
 
+        # Setting seed.
+        seed_everything(42)
+
         # Feature transform layer
         self.feature_transf = FeatureTransformLayer(mask=in_feature_mask, out_channels=out_transf_channels, activation='sigmoid')
 
@@ -170,6 +180,9 @@ class MultiMeanDisplacerNet(torch.nn.Module):
         self.no_dgcnn_layers = len(out_channels_list)
         self.out_transf_channels = out_transf_channels
         self.no_batches = len(in_feature_mask)
+
+        # Setting seed.
+        seed_everything(42)
 
         # Feature transform layer
         self.feature_transf = FeatureTransformLayer(mask=in_feature_mask, out_channels=out_transf_channels)
