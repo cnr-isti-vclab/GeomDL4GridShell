@@ -1,4 +1,3 @@
-from turtle import forward
 import torch
 from torch.nn import Sequential, ReLU
 from torch_geometric.seed import seed_everything
