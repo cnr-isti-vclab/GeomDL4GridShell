@@ -41,15 +41,16 @@ class FeaturedMesh(Mesh):
         geodesic_centrality_firm = torch.from_numpy(geodesic_centrality_firm).to(self.device).unsqueeze(1)
         geodesic_distance_bound = torch.from_numpy(geodesic_distance_bound).to(self.device).unsqueeze(1)
         geodesic_centrality_bound = torch.from_numpy(geodesic_centrality_bound).to(self.device).unsqueeze(1)
-        #feature_list.append(geodesic_distance_firm)
-        #feature_list.append(geodesic_centrality_firm)
-        #feature_list.append(geodesic_distance_bound)
-        #feature_list.append(geodesic_centrality_bound)
+        feature_list.append(geodesic_distance_firm)
+        feature_list.append(geodesic_centrality_firm)
+        feature_list.append(geodesic_distance_bound)
+        feature_list.append(geodesic_centrality_bound)
+        feature_mask.append([8, 9, 10, 11])
 
         # input_features[:, 12:16]: first 4 laplacian eigenvectors.
-        eigenvectors = self.compute_laplacian_eigs(4)
-        feature_list.append(eigenvectors)
-        feature_mask.append([8, 9, 10, 11])
+        # eigenvectors = self.compute_laplacian_eigs(4)
+        # feature_list.append(eigenvectors)
+        # feature_mask.append([8, 9, 10, 11])
 
         self.input_features = torch.cat(feature_list, dim=1)
         self.feature_mask = feature_mask
