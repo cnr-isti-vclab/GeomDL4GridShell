@@ -1,3 +1,4 @@
+from turtle import forward
 import torch
 from torch.nn import Sequential, ReLU
 from torch_geometric.seed import seed_everything
@@ -173,7 +174,7 @@ class MultiMaxDisplacerNet(torch.nn.Module):
         return self.mlp(out)
 
 class MultiMeanDisplacerNet(torch.nn.Module):
-    def __init__(self, k, in_feature_mask, out_channels_list=[256, 512, 512, 512], out_transf_channels=256):
+    def __init__(self, k, in_feature_mask, out_channels_list=[256, 512, 512, 512], out_transf_channels=1024):
         super(MultiMeanDisplacerNet, self).__init__()
 
         self.no_dgcnn_layers = len(out_channels_list)
@@ -206,7 +207,7 @@ class MultiMeanDisplacerNet(torch.nn.Module):
         batch_vector = torch.kron(torch.arange(self.no_batches), torch.ones(no_vertices)).long().to(next(self.parameters()).device)
         
         # List of layer outputs.
-        out_list = [x]
+        out_list = []
 
         # Transforming input features.
         x = self.feature_transf(x)
