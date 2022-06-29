@@ -1,6 +1,5 @@
-from turtle import forward
 import torch
-from torch.nn import Sequential, ReLU
+from torch.nn import Sequential, ReLU, Sigmoid
 from torch_geometric.seed import seed_everything
 from torch_geometric.nn import Linear
 from models.layers.feature_transform_layer import FeatureTransformLayer
@@ -9,7 +8,7 @@ from models.layers.gatv2_layer import GATv2Layer
 
 class DisplacerNet(torch.nn.Module):
 
-    def __init__(self, k, mode='gat', out_channels_list=[64, 128, 256, 512], in_feature_mask=None):
+    def __init__(self, k, mode='gat', out_channels_list=[1024, 1024, 1024, 1024], in_feature_mask=None):
         super(DisplacerNet, self).__init__()
         self.mode = mode
 
@@ -20,7 +19,7 @@ class DisplacerNet(torch.nn.Module):
 
         # Feature transform layer, if requested.
         if in_feature_mask is not None:
-            self.feature_transf = FeatureTransformLayer(mask=in_feature_mask, out_channels=256)
+            self.feature_transf = FeatureTransformLayer(mask=in_feature_mask, out_channels=512)
 
         # First layer.
         if self.mode == 'dgcnn':
@@ -38,9 +37,9 @@ class DisplacerNet(torch.nn.Module):
                 setattr(self, 'layer_' + str(layer + 2), GATv2Layer(out_channels_list[layer + 1], k))
 
         # Shared mlp.
-        self.mlp = Sequential(  Linear(-1, 512),
+        self.mlp = Sequential(  Linear(-1, 256),
                                 ReLU(),
-                                Linear(-1, 256),
+                                Linear(-1, 64),
                                 ReLU(),
                                 Linear(-1, 3)  )
 
@@ -174,7 +173,7 @@ class MultiMaxDisplacerNet(torch.nn.Module):
         return self.mlp(out)
 
 class MultiMeanDisplacerNet(torch.nn.Module):
-    def __init__(self, k, in_feature_mask, out_channels_list=[256, 512, 512, 512], out_transf_channels=1024):
+    def __init__(self, k, in_feature_mask, out_channels_list=[256, 512, 512, 512], out_transf_channels=256):
         super(MultiMeanDisplacerNet, self).__init__()
 
         self.no_dgcnn_layers = len(out_channels_list)
