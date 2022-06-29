@@ -20,6 +20,7 @@ class NetOptimizerOptions:
         self.parser.add_argument('--transforminputfeatures', dest='transform_in_features', action='store_true', default='False')
         self.parser.add_argument('--getloss', dest='get_loss', action='store_true', default='False')
         self.parser.add_argument('--layermode', dest='layer_mode', default='gat')
+        self.parser.add_argument('--neighborlist', dest='neighbor_list', nargs='+', type=int, default=[])
 
     def parse(self):
         return self.parser.parse_args()
