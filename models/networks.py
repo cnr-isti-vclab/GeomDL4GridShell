@@ -12,7 +12,7 @@ class DisplacerNet(torch.nn.Module):
         super(DisplacerNet, self).__init__()
         self.mode = mode
 
-        self.no_dgcnn_layers = len(out_channels_list)
+        self.no_graph_layers = len(out_channels_list)
 
         # Setting seed.
         seed_everything(42)
@@ -52,7 +52,7 @@ class DisplacerNet(torch.nn.Module):
         out_list = [x]
 
         # Applying consecutive layers.
-        for layer in range(1, self.no_dgcnn_layers + 1):
+        for layer in range(1, self.no_graph_layers + 1):
             current_layer = getattr(self, 'layer_' + str(layer))
             out_list.append(current_layer(out_list[-1]))
 
@@ -73,7 +73,7 @@ class MultiDisplacerNet(torch.nn.Module):
     def __init__(self, k, in_feature_mask, out_channels_list=[256, 512, 512, 256], out_transf_channels=256):
         super(MultiDisplacerNet, self).__init__()
 
-        self.no_dgcnn_layers = len(out_channels_list)
+        self.no_graph_layers = len(out_channels_list)
         self.out_transf_channels = out_transf_channels
         self.no_batches = len(in_feature_mask)
 
@@ -113,7 +113,7 @@ class MultiDisplacerNet(torch.nn.Module):
         out_list.append(self.layer_1(out_list[0], batch_vector))
 
         # Applying following layers.
-        for layer in range(2, self.no_dgcnn_layers + 1):
+        for layer in range(2, self.no_graph_layers + 1):
             current_layer = getattr(self, 'layer_' + str(layer))
             net_input = torch.cat(out_list[-2: ], dim=1)
             out_list.append(current_layer(net_input, batch_vector))
@@ -127,7 +127,7 @@ class MultiMaxDisplacerNet(torch.nn.Module):
     def __init__(self, k, in_feature_mask, out_channels_list=[256, 512, 512, 512], out_transf_channels=256):
         super(MultiMaxDisplacerNet, self).__init__()
 
-        self.no_dgcnn_layers = len(out_channels_list)
+        self.no_graph_layers = len(out_channels_list)
         self.out_transf_channels = out_transf_channels
         self.no_batches = len(in_feature_mask)
 
@@ -164,7 +164,7 @@ class MultiMaxDisplacerNet(torch.nn.Module):
         out_list = [x]
 
         # Applying consecutive layers.
-        for layer in range(1, self.no_dgcnn_layers + 1):
+        for layer in range(1, self.no_graph_layers + 1):
             current_layer = getattr(self, 'layer_' + str(layer))
             out_list.append(current_layer(out_list[-1], batch_vector))
 
@@ -176,7 +176,7 @@ class MultiMeanDisplacerNet(torch.nn.Module):
     def __init__(self, k, in_feature_mask, out_channels_list=[256, 512, 512, 512], out_transf_channels=256):
         super(MultiMeanDisplacerNet, self).__init__()
 
-        self.no_dgcnn_layers = len(out_channels_list)
+        self.no_graph_layers = len(out_channels_list)
         self.out_transf_channels = out_transf_channels
         self.no_batches = len(in_feature_mask)
 
@@ -220,7 +220,7 @@ class MultiMeanDisplacerNet(torch.nn.Module):
         out_list.append(y)
 
         # Applying consecutive layers.
-        for layer in range(2, self.no_dgcnn_layers + 1):
+        for layer in range(2, self.no_graph_layers + 1):
             current_layer = getattr(self, 'layer_' + str(layer))
             out_list.append(current_layer(out_list[-1]))
 
