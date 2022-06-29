@@ -5,6 +5,7 @@ from models.layers.featured_mesh import FeaturedMesh
 from models.networks import DisplacerNet, MultiDisplacerNet, MultiMaxDisplacerNet, MultiMeanDisplacerNet
 from options.net_optimizer_options import NetOptimizerOptions
 from utils import save_mesh, save_cloud, export_vector
+from matplotlib import cm
 
 
 class LacconianNetOptimizer:
@@ -64,7 +65,7 @@ class LacconianNetOptimizer:
         # Building lr decay scheduler.
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, factor=0.5, patience=15, verbose=True)
 
-    def optimize(self, n_iter, save, save_interval, display_interval, save_label, take_times, save_prefix=''):
+    def optimize(self, n_iter, save, save_interval, display_interval, save_label, take_times, neighbor_list, save_prefix=''):
         # Initializing best loss.
         best_loss = torch.tensor(float('inf'), device=self.device)
 
@@ -150,14 +151,46 @@ class LacconianNetOptimizer:
             export_vector(best_displacements, '[BEST]load_' + save_label + str(best_iteration) + '.csv')
             export_vector(best_energy, '[BEST]energy_' + save_label + str(best_iteration) + '.csv')
 
+        # Exporting loss vector, if requested.
         if self.get_loss:
             filename = 'loss_' + save_label + '.csv'
             export_vector(torch.tensor(self.loss_list), filename)
+
+        # Exporting proximity clouds, if requested.
+        if len(neighbor_list) != 0:
+            with torch.no_grad():
+                out_list = [self.initial_mesh.input_features]
+                for layer_idx in range(1, self.model.no_graph_layers + 1):
+                    current_layer = getattr(self.model, 'layer_' + str(layer_idx))
+                    if self.layer_mode == 'gat' or 'multi' in self.layer_mode:
+                        if layer_idx == 1:
+                            inp = out_list[0]
+                        else:
+                            inp = out_list[-1][0]
+                        out_list.append(current_layer(inp, return_attention_weights=True))
+                    elif self.layer_mode == 'dgcnn':
+                        out_list.append(current_layer(out_list[-1]))
+
+            if self.layer_mode == 'gat':
+                for layer_idx in range(1, len(out_list)):
+                    neighs, weights = out_list[layer_idx][1]
+                    for vertex_idx in neighbor_list:
+                        for head_idx in range(weights.shape[1]):
+                            pos = list(range(self.no_knn*vertex_idx, self.no_knn*(vertex_idx + 1))) + [self.no_knn*len(self.initial_mesh.vertices) + vertex_idx]
+                            points = neighs[0, pos]
+                            colors = weights[pos, head_idx]
+                            colors = (colors - colors.min()) / (colors.max() - colors.min())
+                            print(colors)
+                            colormap = cm.get_cmap('jet')
+                            colormap(colors)
+                            filename = save_label + '_layer' + str(layer_idx) + '_vertex' + str(vertex_idx) + '_head' + str(head_idx) + '.ply'
+                            save_cloud(self.initial_mesh.vertices[points, :], filename, color=colormap(colors))
+
 
 
 if __name__ == '__main__':
     parser = NetOptimizerOptions()
     options = parser.parse()
     lo = LacconianNetOptimizer(options.path, options.lr, options.momentum, options.device, options.beam_have_load, options.loss_type, options.no_knn, options.transform_in_features, options.get_loss, options.layer_mode)
-    lo.optimize(options.n_iter, options.save, options.save_interval, options.display_interval, options.save_label, options.take_times)
+    lo.optimize(options.n_iter, options.save, options.save_interval, options.display_interval, options.save_label, options.take_times, options.neighbor_list)
 
