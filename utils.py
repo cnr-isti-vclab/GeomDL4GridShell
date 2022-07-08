@@ -163,7 +163,7 @@ def isotrophic_remesh(mesh, filename, target_length):
 def save_cloud(points, filename, color=None):
     # Changing torch.tensors to np.arrays.
     points = np.float64(points.detach().cpu().numpy())
-    if color is not None and type(color) is torch.Tensor:
+    if color is not None:
         color = np.float64(color.detach().cpu().numpy())
 
     # Creating pymeshlab MeshSet and adding cloud "mesh".
