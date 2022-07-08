@@ -57,6 +57,8 @@ class LacconianNetOptimizer:
         # Initializing loss list.
         if self.get_loss:
             self.loss_list = []
+            self.structural_loss_list = []
+            self.penalty_loss_list = []
 
         # Building optimizer.
         # self.optimizer = torch.optim.Adam([ self.model.parameters ], lr=lr)
@@ -115,7 +117,9 @@ class LacconianNetOptimizer:
             if display_interval != -1 and current_iteration % display_interval == 0:
                 print('*********** Iteration: ', current_iteration, ' Structural loss: ', structural_loss, '***********')
             if self.get_loss:
-                self.loss_list.append(float(structural_loss))
+                self.structural_loss_list.append(float(structural_loss))
+                self.loss_list.append(float(loss))
+                self.penalty_loss_list.append(float(boundary_penalty))
 
             # Keeping data if loss is best.
             if loss < best_loss:
@@ -153,8 +157,12 @@ class LacconianNetOptimizer:
 
         # Exporting loss vector, if requested.
         if self.get_loss:
+            filename = 'structural_loss_' + save_label + '.csv'
+            export_vector(torch.tensor(self.structural_loss_list), filename)
             filename = 'loss_' + save_label + '.csv'
             export_vector(torch.tensor(self.loss_list), filename)
+            filename = 'penalty_loss_' + save_label + '.csv'
+            export_vector(torch.tensor(self.penalty_loss_list), filename)
 
         # Exporting proximity clouds, if requested.
         if len(neighbor_list) != 0:
