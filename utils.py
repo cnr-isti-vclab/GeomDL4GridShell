@@ -72,7 +72,7 @@ def extract_apss_principal_curvatures(path, filterscales=[8.]):
 
     return k1, k2
 
-def extract_geodesic_distances(path):
+def extract_geodesic_distances(path, nsmooth=8):
     # Creating pymeshlab MeshSet, loading mesh from file and selecting it.
     ms = pymeshlab.MeshSet()
     ms.load_new_mesh(path)
@@ -83,32 +83,48 @@ def extract_geodesic_distances(path):
 
     # Getting geodesic distance of mesh vertices from firm ones.
     ms.compute_scalar_by_geodesic_distance_from_selection_per_vertex(maxdistance=pymeshlab.Percentage(100.))
+    for _ in range(nsmooth):
+        ms.apply_scalar_smoothing_per_vertex()
     from_firm_geodesic_distance = np.float32(mesh.vertex_scalar_array())
 
     # Getting geodesic centrality of mesh vertices from firm ones.
+    ms_new = pymeshlab.MeshSet()
     v = mesh.vertex_matrix()
+    f = mesh.face_matrix()
     from_firm_geodesic_centrality = np.zeros(len(v))
     for vertex in v[mesh.vertex_selection_array()]:
         ms.compute_scalar_by_geodesic_distance_from_given_point_per_vertex(startpoint=vertex, maxdistance=pymeshlab.Percentage(100.))
         from_firm_geodesic_centrality += mesh.vertex_scalar_array()
     from_firm_geodesic_centrality /= len(v[mesh.vertex_selection_array()])
-    from_firm_geodesic_centrality = np.float32(from_firm_geodesic_centrality)
+    mesh_new = pymeshlab.Mesh(vertex_matrix=v, face_matrix=f, v_scalar_array=from_firm_geodesic_centrality)
+    ms_new.add_mesh(mesh_new, set_as_current=True)
+    for _ in range(nsmooth):
+        ms_new.apply_scalar_smoothing_per_vertex()
+    from_firm_geodesic_centrality = np.float32(mesh_new.vertex_scalar_array())
 
     # Selecting red vertices via compute_selection_from_mesh_border filter.
     ms.compute_selection_from_mesh_border()
 
     # Getting geodesic distance of mesh vertices from red ones.
     ms.compute_scalar_by_geodesic_distance_from_selection_per_vertex(maxdistance=pymeshlab.Percentage(100.))
+    for _ in range(nsmooth):
+        ms.apply_scalar_smoothing_per_vertex()
     from_bound_geodesic_distance = np.float32(mesh.vertex_scalar_array())
 
     # Getting geodesic centrality of mesh vertices from red ones.
+    ms_new = pymeshlab.MeshSet()
     v = mesh.vertex_matrix()
+    f = mesh.face_matrix()
     from_bound_geodesic_centrality = np.zeros(len(v))
     for vertex in v[mesh.vertex_selection_array()]:
         ms.compute_scalar_by_geodesic_distance_from_given_point_per_vertex(startpoint=vertex, maxdistance=pymeshlab.Percentage(100.))
         from_bound_geodesic_centrality += mesh.vertex_scalar_array()
     from_bound_geodesic_centrality /= len(v[mesh.vertex_selection_array()])
-    from_bound_geodesic_centrality = np.float32(from_bound_geodesic_centrality)
+    mesh_new = pymeshlab.Mesh(vertex_matrix=v, face_matrix=f, v_scalar_array=from_bound_geodesic_centrality)
+    ms_new.add_mesh(mesh_new, set_as_current=True)
+    for _ in range(nsmooth):
+        ms_new.apply_scalar_smoothing_per_vertex()
+    from_bound_geodesic_centrality = np.float32(mesh_new.vertex_scalar_array())
 
     return from_firm_geodesic_distance, from_firm_geodesic_centrality, from_bound_geodesic_distance, from_bound_geodesic_centrality
 
