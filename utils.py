@@ -50,7 +50,7 @@ def save_mesh(mesh, filename, v_quality=np.array([], dtype=np.float64)):
     # Saving mesh on filename.
     ms.save_current_mesh(filename)
 
-def extract_apss_principal_curvatures(path, filterscales=[8.]):
+def extract_apss_principal_curvatures(path, filterscales=[8.], nsmooth=8):
     # Creating pymeshlab MeshSet, loading mesh from file and selecting it.
     ms = pymeshlab.MeshSet()
     ms.load_new_mesh(path)
@@ -60,6 +60,8 @@ def extract_apss_principal_curvatures(path, filterscales=[8.]):
     k1 = []
     for scale in filterscales:
         ms.compute_curvature_and_color_apss_per_vertex(filterscale=scale, curvaturetype='K1')
+        for _ in range(nsmooth):
+            ms.apply_scalar_smoothing_per_vertex()
         k1.append(np.float32(mesh.vertex_scalar_array()))
     k1 = np.stack(k1, axis=1)
     
@@ -67,6 +69,8 @@ def extract_apss_principal_curvatures(path, filterscales=[8.]):
     k2 = []
     for scale in filterscales:
         ms.compute_curvature_and_color_apss_per_vertex(filterscale=scale, curvaturetype='K2')
+        for _ in range(nsmooth):
+            ms.apply_scalar_smoothing_per_vertex()
         k2.append(np.float32(mesh.vertex_scalar_array()))
     k2 = np.stack(k2, axis=1)
 
