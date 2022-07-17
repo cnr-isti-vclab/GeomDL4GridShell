@@ -102,6 +102,7 @@ class LacconianNetOptimizer:
             boundary_penalty = torch.mean(torch.norm(displacements[constrained_vertices], dim=1))
             if current_iteration == 0:
                 penalty_scale = float(0.3 * structural_loss / boundary_penalty)
+                structural_loss_0 = structural_loss
 
             # Summing loss components.
             loss = structural_loss + penalty_scale * boundary_penalty
@@ -116,13 +117,12 @@ class LacconianNetOptimizer:
             # Displaying loss if requested.
             if display_interval != -1 and current_iteration % display_interval == 0:
                 print('*********** Iteration: ', current_iteration, ' Structural loss: ', structural_loss, '***********')
-            if self.get_loss:
                 self.structural_loss_list.append(float(structural_loss))
                 self.loss_list.append(float(loss))
                 self.penalty_loss_list.append(float(boundary_penalty))
 
             # Keeping data if loss is best.
-            if loss < best_loss:
+            if structural_loss < best_loss:
                 best_loss = loss
                 best_iteration = current_iteration
 
@@ -130,6 +130,10 @@ class LacconianNetOptimizer:
                     best_mesh = iteration_mesh
                     best_displacements = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
                     best_energy = self.lacconian_calculus.beam_energy
+
+            # Checking stopping criteria.
+            if self.check_early_stopping(current_iteration, structural_loss_0):
+                break
 
             # Computing gradients and updating optimizer
             back_start = time.time()
@@ -193,6 +197,16 @@ class LacconianNetOptimizer:
                             colormap(colors)
                             filename = save_label + '_layer' + str(layer_idx) + '_vertex' + str(vertex_idx) + '_head' + str(head_idx) + '.ply'
                             save_cloud(self.initial_mesh.vertices[points, :], filename, color=colormap(colors))
+
+    def check_early_stopping(self, current_iteration, loss_0, check_width=30, relative_cond=0.1, absolute_cond=5e-3):
+        if current_iteration > check_width:
+            loss_variation = max(self.structural_loss_list[current_iteration-check_width : ]) - min(self.structural_loss_list[current_iteration-check_width : ])
+            if loss_variation < absolute_cond and loss_variation < relative_cond * loss_0:
+                return True
+            else:
+                return False      
+        else:
+            return False
 
 
 
