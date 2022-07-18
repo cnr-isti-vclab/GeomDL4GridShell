@@ -123,7 +123,7 @@ class LacconianNetOptimizer:
 
             # Keeping data if loss is best.
             if structural_loss < best_loss:
-                best_loss = loss
+                best_loss = structural_loss
                 best_iteration = current_iteration
 
                 if save:
