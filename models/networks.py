@@ -8,7 +8,7 @@ from models.layers.gatv2_layer import GATv2Layer
 
 class DisplacerNet(torch.nn.Module):
 
-    def __init__(self, k, mode='gat', out_channels_list=[1024, 1024, 1024, 1024], in_feature_mask=None):
+    def __init__(self, k, mode='gat', out_channels_list=[256, 256, 256, 256], in_feature_mask=None):
         super(DisplacerNet, self).__init__()
         self.mode = mode
 
@@ -19,7 +19,7 @@ class DisplacerNet(torch.nn.Module):
 
         # Feature transform layer, if requested.
         if in_feature_mask is not None:
-            self.feature_transf = FeatureTransformLayer(mask=in_feature_mask, out_channels=512)
+            self.feature_transf = FeatureTransformLayer(mask=in_feature_mask, out_channels=256)
 
         # First layer.
         if self.mode == 'dgcnn':
