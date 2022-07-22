@@ -16,6 +16,7 @@ class LacconianNetOptimizer:
         self.device = device
         self.loss_type = loss_type
         self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.initial_mesh, beam_have_load=beam_have_load)
+        self.start_loss = self.lacconian_calculus(self.initial_mesh, self.loss_type)
         self.lr = lr
         self.momentum = momentum
         self.no_knn = no_knn
@@ -102,7 +103,6 @@ class LacconianNetOptimizer:
             boundary_penalty = torch.mean(torch.norm(displacements[constrained_vertices], dim=1))
             if current_iteration == 0:
                 penalty_scale = float(0.3 * structural_loss / boundary_penalty)
-                structural_loss_0 = structural_loss
 
             # Summing loss components.
             loss = structural_loss + penalty_scale * boundary_penalty
@@ -132,7 +132,7 @@ class LacconianNetOptimizer:
                     best_energy = self.lacconian_calculus.beam_energy
 
             # Checking stopping criteria.
-            if self.check_early_stopping(current_iteration, structural_loss_0):
+            if self.check_early_stopping(current_iteration):
                 break
 
             # Computing gradients and updating optimizer
@@ -198,10 +198,14 @@ class LacconianNetOptimizer:
                             filename = save_label + '_layer' + str(layer_idx) + '_vertex' + str(vertex_idx) + '_head' + str(head_idx) + '.ply'
                             save_cloud(self.initial_mesh.vertices[points, :], filename, color=colormap(colors))
 
-    def check_early_stopping(self, current_iteration, loss_0, check_width=30, relative_cond=0.1, absolute_cond=5e-3):
-        if current_iteration > check_width:
+    def check_early_stopping(self, current_iteration, check_width=50, relative_cond=0.1, absolute_cond=5e-3):
+        if current_iteration == 0:
+            self.ignore_count = 0
+        if current_iteration != 0 and self.structural_loss_list[-1] > self.start_loss:
+            self.ignore_count += 1
+        if current_iteration > check_width + self.ignore_count:
             loss_variation = max(self.structural_loss_list[current_iteration-check_width : ]) - min(self.structural_loss_list[current_iteration-check_width : ])
-            if loss_variation < absolute_cond and loss_variation < relative_cond * loss_0:
+            if loss_variation < absolute_cond and loss_variation < relative_cond * self.start_loss:
                 return True
             else:
                 return False      
