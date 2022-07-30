@@ -171,7 +171,11 @@ class LacconianNetOptimizer:
         # Exporting proximity clouds, if requested.
         if len(neighbor_list) != 0:
             with torch.no_grad():
-                out_list = [self.initial_mesh.input_features]
+                if hasattr(self.model, 'feature_transf'):
+                    feature_transf = getattr(self.model, 'feature_transf')
+                    out_list = [feature_transf(self.initial_mesh.input_features)]
+                else:
+                    out_list = [self.initial_mesh.input_features]
                 for layer_idx in range(1, self.model.no_graph_layers + 1):
                     current_layer = getattr(self.model, 'layer_' + str(layer_idx))
                     if self.layer_mode == 'gat' or 'multi' in self.layer_mode:
@@ -190,13 +194,11 @@ class LacconianNetOptimizer:
                         for head_idx in range(weights.shape[1]):
                             pos = list(range(self.no_knn*vertex_idx, self.no_knn*(vertex_idx + 1))) + [self.no_knn*len(self.initial_mesh.vertices) + vertex_idx]
                             points = neighs[0, pos]
-                            colors = weights[pos, head_idx]
-                            colors = (colors - colors.min()) / (colors.max() - colors.min())
-                            print(colors)
+                            attention_weights = weights[pos, head_idx]
+                            colors = (attention_weights - attention_weights.min()) / (attention_weights.max() - attention_weights.min())
                             colormap = cm.get_cmap('jet')
-                            colormap(colors)
                             filename = save_label + '_layer' + str(layer_idx) + '_vertex' + str(vertex_idx) + '_head' + str(head_idx) + '.ply'
-                            save_cloud(self.initial_mesh.vertices[points, :], filename, color=colormap(colors))
+                            save_cloud(self.initial_mesh.vertices[points, :], filename, color=colormap(colors.cpu()), quality=attention_weights)
 
     def check_early_stopping(self, current_iteration, check_width=50, relative_cond=0.1, absolute_cond=5e-3):
         if current_iteration == 0:
