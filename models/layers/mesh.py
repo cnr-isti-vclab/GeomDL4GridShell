@@ -6,14 +6,15 @@ import copy
 
 class Mesh:
 
-    def __init__(self, file, vertices=None, faces=None, device='cpu'):
-        if file is None:
-            return
+    def __init__(self, file=None, vertices=None, faces=None, device='cpu'):
         self.device = torch.device(device)
-        if vertices is not None and faces is not None:
-            self.vertices, self.faces = vertices.cpu().numpy(), faces.cpu().numpy()
-        else:
+        if file is not None and vertices is None and faces is None:
             self.vertices, self.faces, self.vertex_is_red, self.vertex_is_on_boundary = load_mesh(file)
+        elif vertices is not None and faces is not None:
+            self.vertices, self.faces = vertices.cpu().numpy(), faces.cpu().numpy()
+            self.vertex_is_red = self.vertex_is_on_boundary = None
+        else:
+            raise ValueError('Wrong mesh data provided: file xor vertices + faces.')
         edges, edges_per_face = edge_connectivity(self.faces)
         self.edges = torch.from_numpy(edges)
         self.edges_per_face = torch.from_numpy(edges_per_face)
@@ -29,8 +30,10 @@ class Mesh:
         self.edges = self.edges.long().to(device)
         self.faces = self.faces.long().to(device)
         self.edges_per_face = self.edges_per_face.long().to(device)
-        self.vertex_is_red = self.vertex_is_red.to(device)
-        self.vertex_is_on_boundary = self.vertex_is_on_boundary.to(device)
+        if self.vertex_is_red is not None:
+            self.vertex_is_red = self.vertex_is_red.to(device)
+        if self.vertex_is_on_boundary is not None:
+            self.vertex_is_on_boundary = self.vertex_is_on_boundary.to(device)
         self.make_on_mesh_shared_computations()
 
     def compute_edge_lengths_and_directions(self):
