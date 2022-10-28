@@ -1,48 +1,19 @@
-##################################################################################################
-# CHANGES:
-# -- new parameters Mesh.vertex_is_constrained, Mesh.edges.
-# -- utils.load_obj is replaced by utils.load_mesh;
-# -- optional parameter normalize added in face_areas_normals method;
-# -- Mesh.vs renamed to Mesh.vertices;
-# -- Mesh.normals renamed to Mesh.face_normals;
-# -- Mesh.area renamed to Mesh.face_areas.
-
 import torch
 import numpy as np
-# from queue import Queue
 from utils import load_mesh, edge_connectivity
 from torch.nn.functional import normalize
 import copy
-# from pathlib import Path
-# import pickle
-# from pytorch3d.ops.knn import knn_gather, knn_points
-
 
 class Mesh:
 
     def __init__(self, file, vertices=None, faces=None, device='cpu'):
         if file is None:
             return
-        # self.filename = Path(file)
-        self.vertices = self.v_mask = self.edge_areas = None
-        self.edges = self.gemm_edges = self.sides = None
         self.device = torch.device(device)
         if vertices is not None and faces is not None:
             self.vertices, self.faces = vertices.cpu().numpy(), faces.cpu().numpy()
-            # self.scale, self.translations = 1.0, np.zeros(3,)
         else:
-            self.vertices, self.faces, self.vertex_is_red, self.vertex_is_blue, self.vertex_is_on_boundary = load_mesh(file)
-            # self.normalize_unit_bb()
-        # self.vs_in = copy.deepcopy(self.vertices)
-        # self.v_mask = np.ones(len(self.vertices), dtype=bool)
-        # self.build_gemm()
-        # self.history_data = None
-        # if hold_history:
-        #     self.init_history()
-        # if gfmm:
-        #     self.gfmm = self.build_gfmm() TODO get rid of this DS
-        # else:
-        #     self.gfmm = None
+            self.vertices, self.faces, self.vertex_is_red, self.vertex_is_on_boundary = load_mesh(file)
         edges, edges_per_face = edge_connectivity(self.faces)
         self.edges = torch.from_numpy(edges)
         self.edges_per_face = torch.from_numpy(edges_per_face)
@@ -52,8 +23,6 @@ class Mesh:
             self.faces = torch.from_numpy(self.faces)
         if type(self.vertex_is_red) is np.ndarray:
             self.vertex_is_red = torch.from_numpy(self.vertex_is_red)
-        if type(self.vertex_is_blue) is np.ndarray:
-            self.vertex_is_blue = torch.from_numpy(self.vertex_is_blue)
         if type(self.vertex_is_on_boundary) is np.ndarray:
             self.vertex_is_on_boundary = torch.from_numpy(self.vertex_is_on_boundary)
         self.vertices = self.vertices.to(device)
@@ -61,10 +30,8 @@ class Mesh:
         self.faces = self.faces.long().to(device)
         self.edges_per_face = self.edges_per_face.long().to(device)
         self.vertex_is_red = self.vertex_is_red.to(device)
-        self.vertex_is_blue = self.vertex_is_blue.to(device)
         self.vertex_is_on_boundary = self.vertex_is_on_boundary.to(device)
         self.make_on_mesh_shared_computations()
-        # self.face_areas, self.face_normals = self.face_areas_normals(self.vertices, self.faces)
 
     def compute_edge_lengths_and_directions(self):
         # Edge directions are computed by endpoints difference.
