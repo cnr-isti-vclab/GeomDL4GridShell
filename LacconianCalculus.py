@@ -6,10 +6,9 @@ DOF = 6     # degrees of freedom per vertex
 
 class LacconianCalculus:
     
-    def __init__(self, file=None, mesh=None, beam_properties=None, beam_have_load=False, device='cpu'):
+    def __init__(self, file=None, mesh=None, beam_properties=None, device='cpu'):
         self.device = torch.device(device)
         self.set_beam_properties(beam_properties)
-        self.beam_have_load = beam_have_load
 
         if file is not None:
             self.initial_mesh = Mesh(file, device=device)
@@ -75,14 +74,13 @@ class LacconianCalculus:
         ###########################################################################################################
         # Bulding bool tensor masks related to constraints.
         # Non-constrained vertex mask:
-        self.non_constrained_vertices = torch.logical_or(self.initial_mesh.vertex_is_red, self.initial_mesh.vertex_is_blue).logical_not()
+        self.non_constrained_vertices = self.initial_mesh.vertex_is_red.logical_not()
 
-        # Red vertices refer to all dofs constrainess, blue vertices to just translation constrainess.
-        blue_dofs = torch.kron(self.initial_mesh.vertex_is_blue, torch.tensor([True] * int(DOF/2) + [False] * int(DOF/2), device=self.device))
+        # Red vertices refer to all dofs constrainess.
         red_dofs = torch.kron(self.initial_mesh.vertex_is_red, torch.tensor([True] * DOF, device=self.device))
 
         # Non-constrained vertex dofs mask.
-        self.dofs_non_constrained_mask = torch.logical_and(blue_dofs.logical_not(), red_dofs.logical_not())
+        self.dofs_non_constrained_mask = red_dofs.logical_not()
 
     # Please note, + operator in this case makes row-wise arranged torch.arange(DOF) copies each time shiftedy by
     # corresponding 6 * self.mesh.edges[:, 0].unsqueeze(-1) row element.
@@ -109,10 +107,9 @@ class LacconianCalculus:
         # Computing beam loads on each vertex: -1/2 * <beam volume> * <beam density> (beam load is equally parted to endpoints) along z-axis.
         # Some details: vec.scatter_add(0, idx, src) with vec, idx, src 1d tensors, add at vec positions specified
         # by idx corresponding src values.
-        if self.beam_have_load:
-            beam_loads = torch.mul(mesh.edge_lengths, -1/2 * self.properties[2] * self.properties[8])
-            on_vertices_beam_loads = torch.zeros(mesh.vertices.shape[0], device=self.device)
-            on_vertices_beam_loads.scatter_add_(0, mesh.edges.flatten(), torch.stack([beam_loads] * 2, dim=1).flatten())
+        beam_loads = torch.mul(mesh.edge_lengths, -1/2 * self.properties[2] * self.properties[8])
+        on_vertices_beam_loads = torch.zeros(mesh.vertices.shape[0], device=self.device)
+        on_vertices_beam_loads.scatter_add_(0, mesh.edges.flatten(), torch.stack([beam_loads] * 2, dim=1).flatten())
 
         # Computing face loads on each vertex: -1/3 * <face areas> * <weight per surface unit> (face load is equally parted to vertices) along z.
         # Some details: vec.scatter_add(0, idx, src) with vec, idx, src 1d tensors, add at vec positions specified
@@ -122,10 +119,8 @@ class LacconianCalculus:
         on_vertices_face_loads.scatter_add_(0, mesh.faces.flatten(), torch.stack([face_loads] * 3, dim=1).flatten())
 
         # Summing beam and face components to compute per-vertex loads.
-        if self.beam_have_load:
-            self.load[DOF*torch.arange(mesh.vertices.shape[0], device=self.device) + 2] = on_vertices_beam_loads + on_vertices_face_loads
-        else:
-            self.load[DOF*torch.arange(mesh.vertices.shape[0], device=self.device) + 2] = on_vertices_face_loads
+        self.load[DOF*torch.arange(mesh.vertices.shape[0], device=self.device) + 2] = on_vertices_beam_loads + on_vertices_face_loads
+
 
         #######################################################################################################################################
         # Beam frames computation.

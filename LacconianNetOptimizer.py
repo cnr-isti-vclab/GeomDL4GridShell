@@ -10,12 +10,11 @@ from matplotlib import cm
 
 class LacconianNetOptimizer:
 
-    def __init__(self, file, lr, momentum, device, beam_have_load, loss_type, no_knn, transform_in_features, get_loss, layer_mode):
+    def __init__(self, file, lr, momentum, device, loss_type, no_knn, transform_in_features, get_loss, layer_mode):
         self.initial_mesh = FeaturedMesh(file=file, device=device)
-        self.beam_have_load = beam_have_load
         self.device = device
         self.loss_type = loss_type
-        self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.initial_mesh, beam_have_load=beam_have_load)
+        self.lacconian_calculus = LacconianCalculus(device=device, mesh=self.initial_mesh)
         self.start_loss = self.lacconian_calculus(self.initial_mesh, self.loss_type)
         self.lr = lr
         self.momentum = momentum
@@ -219,6 +218,6 @@ class LacconianNetOptimizer:
 if __name__ == '__main__':
     parser = NetOptimizerOptions()
     options = parser.parse()
-    lo = LacconianNetOptimizer(options.path, options.lr, options.momentum, options.device, options.beam_have_load, options.loss_type, options.no_knn, options.transform_in_features, options.get_loss, options.layer_mode)
+    lo = LacconianNetOptimizer(options.path, options.lr, options.momentum, options.device, options.loss_type, options.no_knn, options.transform_in_features, options.get_loss, options.layer_mode)
     lo.optimize(options.n_iter, options.save, options.save_interval, options.display_interval, options.save_label, options.take_times, options.neighbor_list)
 

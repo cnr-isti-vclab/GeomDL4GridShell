@@ -48,7 +48,7 @@ class NormalConsistency:
         # Building boundary vertex edge matrix.
         if self.boundary_reg:
             for vertex in range(self.initial_mesh.vertices.shape[0]):
-                if self.initial_mesh.vertex_is_on_boundary[vertex] and not self.initial_mesh.vertex_is_red[vertex] and not self.initial_mesh.vertex_is_blue[vertex]:
+                if self.initial_mesh.vertex_is_on_boundary[vertex] and not self.initial_mesh.vertex_is_red[vertex]:
                     edges = (torch.any(self.initial_mesh.edges == vertex, dim=1) * edge_is_on_boundary).nonzero().flatten()
                     boundary_free_vertex_list.append(edges)
                     boundary_vertex_pos.append(vertex)

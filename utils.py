@@ -16,13 +16,12 @@ def load_mesh(path):
     # Deducing vertex constraintness from red or blue coloring.
     colors = mesh.vertex_color_matrix()[:, :3]
     vertex_is_red = np.where((colors[:,0] == 1) & (colors[:,1] == 0) & (colors[:,2] == 0), True, False)
-    vertex_is_blue = np.where((colors[:,0] == 0) & (colors[:,1] == 0) & (colors[:,2] == 1), True, False)
 
     # Getting boundary vertices mask.
     ms.compute_selection_from_mesh_border()
     vertex_is_on_boundary = mesh.vertex_selection_array()
    
-    return vertices, faces, vertex_is_red, vertex_is_blue, vertex_is_on_boundary
+    return vertices, faces, vertex_is_red, vertex_is_on_boundary
 
 def save_mesh(mesh, filename, v_quality=np.array([], dtype=np.float64)):
     # Changing torch.tensors to np.arrays.
@@ -31,16 +30,13 @@ def save_mesh(mesh, filename, v_quality=np.array([], dtype=np.float64)):
     if type(v_quality) is torch.Tensor:
         v_quality = np.float64(v_quality.detach().cpu().numpy())
 
-    # Creating vertex_color_matrix from vertex_is_red, vertex_is_blue.
+    # Creating vertex_color_matrix from vertex_is_red.
     colors = np.zeros((vertices.shape[0], 4))
     for idx, red_vertex in enumerate(mesh.vertex_is_red):
         if red_vertex:
             colors[idx, :] = np.array([1., 0., 0., 1.])
         else:
             colors[idx, :] = np.array([0.75294118, 0.75294118, 0.75294118, 1])
-    for idx, blue_vertex in enumerate(mesh.vertex_is_blue):
-        if blue_vertex:
-            colors[idx, :] = np.array([0., 0., 1., 1.])
 
     # Creating pymeshlab MeshSet and adding mesh.
     ms = pymeshlab.MeshSet()
@@ -137,16 +133,13 @@ def isotrophic_remesh(mesh, filename, target_length):
     vertices = np.float64(mesh.vertices.detach().cpu().numpy())
     faces = mesh.faces.detach().cpu().numpy()
 
-    # Creating vertex_color_matrix from vertex_is_red, vertex_is_blue.
+    # Creating vertex_color_matrix from vertex_is_red.
     colors = np.zeros((vertices.shape[0], 4))
     for idx, red_vertex in enumerate(mesh.vertex_is_red):
         if red_vertex:
             colors[idx, :] = np.array([1., 0., 0., 1.])
         else:
             colors[idx, :] = np.array([0.75294118, 0.75294118, 0.75294118, 1])
-    for idx, blue_vertex in enumerate(mesh.vertex_is_blue):
-        if blue_vertex:
-            colors[idx, :] = np.array([0., 0., 1., 1.])
 
     # Creating pymeshlab MeshSet, adding mesh.
     ms = pymeshlab.MeshSet()
