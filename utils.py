@@ -20,8 +20,11 @@ def load_mesh(path):
     # Getting boundary vertices mask.
     ms.compute_selection_from_mesh_border()
     vertex_is_on_boundary = mesh.vertex_selection_array()
+
+    # Computing bounding box diagonal length.
+    bounding_box_diagonal = mesh.bounding_box().diagonal()
    
-    return vertices, faces, vertex_is_red, vertex_is_on_boundary
+    return vertices, faces, vertex_is_red, vertex_is_on_boundary, bounding_box_diagonal
 
 def save_mesh(mesh, filename, v_quality=np.array([], dtype=np.float64)):
     # Changing torch.tensors to np.arrays.
