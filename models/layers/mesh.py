@@ -9,7 +9,7 @@ class Mesh:
     def __init__(self, file=None, vertices=None, faces=None, device='cpu'):
         self.device = torch.device(device)
         if file is not None and vertices is None and faces is None:
-            self.vertices, self.faces, self.vertex_is_red, self.vertex_is_on_boundary = load_mesh(file)
+            self.vertices, self.faces, self.vertex_is_red, self.vertex_is_on_boundary, self.bb_diagonal = load_mesh(file)
         elif vertices is not None and faces is not None:
             self.vertices, self.faces = vertices.cpu().numpy(), faces.cpu().numpy()
             self.vertex_is_red = self.vertex_is_on_boundary = None
@@ -53,7 +53,7 @@ class Mesh:
         self.face_areas, self.face_normals = self.face_areas_normals(self.vertices, self.faces, normalize=False)
 
         ############################################################################################################
-        # Computing edge normals by weighting normals from (at least 2) incident faces.
+        # Computing edge normals by weighting normals from (at most 2) incident faces.
         # Some details: vec.scatter_add(0, idx, src) with vec, idx, src 1d tensors, add at vec positions specified
         # by idx corresponding src values.
         self.edge_normals = torch.zeros(self.edges.shape[0], 3, device=self.device)
