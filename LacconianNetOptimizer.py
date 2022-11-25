@@ -4,7 +4,7 @@ from LacconianCalculus import LacconianCalculus
 from models.layers.featured_mesh import FeaturedMesh
 from models.networks import DisplacerNet, MultiDisplacerNet, MultiMaxDisplacerNet, MultiMeanDisplacerNet
 from options.net_optimizer_options import NetOptimizerOptions
-from utils import save_mesh, save_cloud, export_vector
+from utils import save_mesh, save_cloud, map_to_color_space, export_vector
 from matplotlib import cm
 
 
@@ -79,6 +79,7 @@ class LacconianNetOptimizer:
             export_vector(self.initial_mesh.edges, 'edges.csv')
             export_vector(quality, save_prefix + '[START]load_' + save_label + '.csv')
             export_vector(self.lacconian_calculus.beam_energy, save_prefix + '[START]energy_' + save_label + '.csv')
+            export_vector(map_to_color_space(self.lacconian_calculus.beam_energy.cpu()), save_prefix + '[START,RGBA]energy_' + save_label + '.csv', format='%d')
 
         for current_iteration in range(n_iter):
             iter_start = time.time()

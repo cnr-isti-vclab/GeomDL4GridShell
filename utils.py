@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib.cm import ScalarMappable
 import pymeshlab
 import igl
 import torch
@@ -186,6 +187,14 @@ def get_cotan_matrix(mesh):
 
     return mass, cot
 
+def map_to_color_space(tensor, bytes=True, cmap='jet'):
+    # Initializing a ScalarMappable object.
+    colormap = ScalarMappable(cmap=cmap)
+
+    # Mapping tensor to color space (bytes=True refers to values in 0-255 range instead of 0-1).
+    return colormap.to_rgba(tensor, bytes=bytes)
+
+
 def edge_connectivity(face_matrix):
     # Initializing edge lists.
     edge_list = []
@@ -206,7 +215,8 @@ def edge_connectivity(face_matrix):
 
     return np.array(edge_list), np.array(edge_per_face)
 
-def export_vector(v, filename):
+def export_vector(v, filename, format='%f'):
     # Changing torch.tensors to np.arrays.
-    v = np.float64(v.detach().cpu().numpy())
-    np.savetxt(filename, v, delimiter=',')
+    if type(v) is not np.ndarray:
+        v = np.float64(v.detach().cpu().numpy())
+    np.savetxt(filename, v, delimiter=',', fmt=format)
