@@ -73,13 +73,14 @@ class LacconianNetOptimizer:
 
         # Saving initial mesh with structural data.
         if save:
+            vmax = 10 * self.start_loss
             filename = save_prefix + '[START]' + save_label + '.ply'
             quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
             save_mesh(self.initial_mesh, filename, v_quality=quality.unsqueeze(1))
             export_vector(self.initial_mesh.edges, 'edges.csv')
             export_vector(quality, save_prefix + '[START]load_' + save_label + '.csv')
             export_vector(self.lacconian_calculus.beam_energy, save_prefix + '[START]energy_' + save_label + '.csv')
-            export_vector(map_to_color_space(self.lacconian_calculus.beam_energy.cpu()), save_prefix + '[START,RGBA]energy_' + save_label + '.csv', format='%d')
+            export_vector(map_to_color_space(self.lacconian_calculus.beam_energy.cpu(), vmin=0, vmax=vmax), save_prefix + '[START,RGBA]energy_' + save_label + '.csv', format='%d')
 
         for current_iteration in range(n_iter):
             iter_start = time.time()
@@ -113,6 +114,8 @@ class LacconianNetOptimizer:
                     filename = save_prefix + save_label + '_' + str(current_iteration) + '.ply'
                     quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
                     save_mesh(iteration_mesh, filename, v_quality=quality.unsqueeze(1))
+                    filename = save_prefix + '[RGBA]energy_' + save_label + '_' + str(current_iteration) + '.csv'
+                    export_vector(map_to_color_space(self.lacconian_calculus.beam_energy.detach().cpu(), vmin=0, vmax=vmax), filename, format='%d')
 
             # Displaying loss if requested.
             if display_interval != -1 and current_iteration % display_interval == 0:
@@ -213,7 +216,6 @@ class LacconianNetOptimizer:
                 return False      
         else:
             return False
-
 
 
 if __name__ == '__main__':

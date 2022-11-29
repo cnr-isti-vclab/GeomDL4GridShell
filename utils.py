@@ -187,9 +187,13 @@ def get_cotan_matrix(mesh):
 
     return mass, cot
 
-def map_to_color_space(tensor, bytes=True, cmap='jet'):
+def map_to_color_space(tensor, bytes=True, vmin=None, vmax=None, cmap='jet'):
     # Initializing a ScalarMappable object.
     colormap = ScalarMappable(cmap=cmap)
+
+    # Setting scale limits if requested.
+    if (vmin is not None and vmax is not None):
+        colormap.set_clim(vmin=vmin, vmax=vmax)
 
     # Mapping tensor to color space (bytes=True refers to values in 0-255 range instead of 0-1).
     return colormap.to_rgba(tensor, bytes=bytes)
