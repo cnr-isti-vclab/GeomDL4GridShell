@@ -11,6 +11,7 @@ class NetOptimizerOptions:
         self.parser.add_argument('--momentum', dest='momentum', type=float, default=0.9, help='Optimization momentum')
         self.parser.add_argument('--save', dest='save', action='store_true', default=False, help='True if mesh saving is required')
         self.parser.add_argument('--saveinterval', dest='save_interval', type=int, default=25, help='Mesh saving iterations interval')
+        self.parser.add_argument('--saveprefix', dest='save_prefix', type=str, default='', help='Directory for saves.')
         self.parser.add_argument('--displayinterval', dest='display_interval', type=int, default=1, help='Loss display iterations interval')
         self.parser.add_argument('--savelabel', dest='save_label', type=str, default='deformation', help='Label for ouputs')
         self.parser.add_argument('--losstype', dest='loss_type', type=str, default='norm_vertex_deformations', help='Type of loss computed')
