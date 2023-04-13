@@ -1,8 +1,10 @@
 import numpy as np
-from matplotlib.cm import ScalarMappable
+import matplotlib.pyplot as plt
 import pymeshlab
 import igl
 import torch
+from matplotlib.colors import ListedColormap
+from matplotlib.cm import ScalarMappable
 
 def load_mesh(path):
     # Creating pymeshlab MeshSet, loading mesh from file and selecting it.
@@ -109,13 +111,13 @@ def extract_geodesic_distances(path, nsmooth=8):
     # Selecting red vertices via compute_selection_from_mesh_border filter.
     ms.compute_selection_from_mesh_border()
 
-    # Getting geodesic distance of mesh vertices from red ones.
+    # Getting geodesic distance of mesh vertices from boundary ones.
     ms.compute_scalar_by_geodesic_distance_from_selection_per_vertex(maxdistance=pymeshlab.Percentage(100.))
     for _ in range(nsmooth):
         ms.apply_scalar_smoothing_per_vertex()
     from_bound_geodesic_distance = np.float32(mesh.vertex_scalar_array())
 
-    # Getting geodesic centrality of mesh vertices from red ones.
+    # Getting geodesic centrality of mesh vertices from boundary ones.
     ms_new = pymeshlab.MeshSet()
     v = mesh.vertex_matrix()
     f = mesh.face_matrix()
@@ -187,16 +189,21 @@ def get_cotan_matrix(mesh):
 
     return mass, cot
 
-def map_to_color_space(tensor, bytes=True, vmin=None, vmax=None, cmap='jet'):
+def map_to_color_space(tensor, bytes=True, vmin=None, vmax=None, cmap='jet', fraction_start=0., fraction_end=1.):
     # Initializing a ScalarMappable object.
-    colormap = ScalarMappable(cmap=cmap)
-
+    if fraction_start == 0 and fraction_end == 1:
+        mappable = ScalarMappable(cmap=cmap)
+    else:
+        start_cmap = plt.get_cmap(cmap)
+        new_cmap = ListedColormap(start_cmap(np.linspace(fraction_start, fraction_end, 128)))
+        mappable = ScalarMappable(cmap=new_cmap)
+    
     # Setting scale limits if requested.
     if (vmin is not None and vmax is not None):
-        colormap.set_clim(vmin=vmin, vmax=vmax)
+        mappable.set_clim(vmin=vmin, vmax=vmax)
 
     # Mapping tensor to color space (bytes=True refers to values in 0-255 range instead of 0-1).
-    return colormap.to_rgba(tensor, bytes=bytes)
+    return mappable.to_rgba(tensor, bytes=bytes)
 
 
 def edge_connectivity(face_matrix):

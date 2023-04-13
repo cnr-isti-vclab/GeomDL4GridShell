@@ -48,7 +48,9 @@ class LacconianCalculus:
         if beam_properties is not None:
             self.properties = beam_properties
         else:
-            self.properties = [0.3, 21e7, 1e-3, 4.189828e-8, 4.189828e-8, 8.379656e-8, 1.2, 3, 78.5]
+            #self.properties = [0.3, 21e7, 1e-3, 4.189828e-8, 4.189828e-8, 8.379656e-8, 1.2, 3, 78.5]
+            #self.properties = [0.3, 21e7, 0.005026548245743669, 2.0106192982974676e-6, 2.0106192982974676e-06, 4.021238596594935e-06, 32/27, 3, 78.5]
+            self.properties = [0.3, 21e7, 0.020106192982974676, 3.216990877275948e-05, 3.216990877275948e-05, 6.433981754551896e-05, 32/27, 3, 78.5]
 
         # Computing G := young/(2 * (1 + poisson)).
         self.properties.append(self.properties[1] / (2 * (1+self.properties[0])))
@@ -295,8 +297,19 @@ class LacconianCalculus:
 #############################################################################################################
 #  TEST LacconianCalculus.py ###
 if __name__ == '__main__':
-    lc = LacconianCalculus(file='meshes/casestudy_compr.ply', device='cpu')
-    lc.save_grid_shell(lc.initial_mesh)
-    export_vector(torch.norm(lc.vertex_deformations[:, :3], dim=1), 'load.csv')
-    export_vector(lc.initial_mesh.edges, 'edges.csv')
-    export_vector(lc.beam_energy, 'energy.csv')
+    torch.set_printoptions(precision=10)
+    # mesh1 = 'input/go.ply'
+    # mesh2 = 'output_gat/[BEST]go_198.ply'
+    # lc1 = LacconianCalculus(file=mesh1, device='cpu')
+    # lc2 = LacconianCalculus(file=mesh2, device='cpu')
+    # displacements = torch.norm(lc2.initial_mesh.vertices - lc1.initial_mesh.vertices, dim=1, p=2)
+    # save_path = 'displacements_go_gat.ply'
+    # save_mesh(lc2.initial_mesh, save_path, v_quality=displacements)
+    #lc.save_grid_shell(lc.initial_mesh)
+    # export_vector(torch.norm(lc.vertex_deformations[:, :3], dim=1), 'load.csv')
+    # export_vector(lc.initial_mesh.edges, 'edges.csv')
+    # export_vector(lc.beam_energy, 'energy.csv')
+    mesh = 'input/ff_karamba_en_botanic.ply'
+    lc = LacconianCalculus(file=mesh, device='cpu')
+    # Saving edge topology.
+    export_vector(lc.initial_mesh.edges, 'output/ff_karamba_en_botanic_edges.csv')

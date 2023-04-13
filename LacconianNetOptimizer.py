@@ -68,6 +68,11 @@ class LacconianNetOptimizer:
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, factor=0.5, patience=15, verbose=True)
 
     def optimize(self, n_iter, save, save_interval, display_interval, save_label, take_times, neighbor_list, save_prefix=''):
+        # Initializing times list.
+        if take_times:
+            iteration_times = []
+            backward_times = []
+
         # Initializing best loss.
         best_loss = torch.tensor(float('inf'), device=self.device)
 
@@ -77,7 +82,7 @@ class LacconianNetOptimizer:
             filename = save_prefix + '[START]' + save_label + '.ply'
             quality = torch.norm(self.lacconian_calculus.vertex_deformations[:, :3], p=2, dim=1)
             save_mesh(self.initial_mesh, filename, v_quality=quality.unsqueeze(1))
-            export_vector(self.initial_mesh.edges, 'edges.csv')
+            export_vector(self.initial_mesh.edges, save_prefix + 'edges_' + save_label + '.csv')
             export_vector(quality, save_prefix + '[START]load_' + save_label + '.csv')
             export_vector(self.lacconian_calculus.beam_energy, save_prefix + '[START]energy_' + save_label + '.csv')
             export_vector(map_to_color_space(self.lacconian_calculus.beam_energy.cpu(), vmin=0, vmax=vmax), save_prefix + '[START,RGBA]energy_' + save_label + '.csv', format='%d')
@@ -152,23 +157,34 @@ class LacconianNetOptimizer:
 
             # Displaying times if requested.
             if take_times:
-                print('Iteration time: ' + str(iter_end - iter_start))
-                print('Backward time: ' + str(back_end - back_start))
+                iteration_time = iter_end - iter_start
+                backward_time = back_end - back_start
+                print('Iteration time: ' + str(iteration_time))
+                print('Backward time: ' + str(backward_time))
+                iteration_times.append(float(iteration_time))
+                backward_times.append(float(backward_time))
         
         # Saving best mesh, if mesh saving is enabled.
         if save and n_iter > 0:
             filename = save_prefix + '[BEST]' + save_label + '_' + str(best_iteration) + '.ply'
             save_mesh(best_mesh, filename, v_quality=best_displacements.unsqueeze(1))
-            export_vector(best_displacements, '[BEST]load_' + save_label + str(best_iteration) + '.csv')
-            export_vector(best_energy, '[BEST]energy_' + save_label + str(best_iteration) + '.csv')
+            export_vector(best_displacements, save_prefix + '[BEST]load_' + save_label + str(best_iteration) + '.csv')
+            export_vector(best_energy, save_prefix + '[BEST]energy_' + save_label + str(best_iteration) + '.csv')
+
+        # Exporting mean times, if requested.
+        if save and take_times:
+            filename = save_prefix + 'times_' + save_label + '_' + '.csv'
+            mean_1 = torch.mean(torch.tensor(iteration_times))
+            mean_2 = torch.mean(torch.tensor(backward_times))
+            export_vector(torch.stack([mean_1, mean_2], dim=0), filename)
 
         # Exporting loss vector, if requested.
         if self.get_loss:
-            filename = 'structural_loss_' + save_label + '.csv'
-            export_vector(torch.tensor(self.structural_loss_list), filename)
-            filename = 'loss_' + save_label + '.csv'
+            filename = save_prefix + 'structural_loss_' + save_label + '.csv'
+            export_vector(torch.cat([self.start_loss.unsqueeze(0), torch.tensor(self.structural_loss_list, device=self.device)], dim=0), filename)
+            filename = save_prefix + 'loss_' + save_label + '.csv'
             export_vector(torch.tensor(self.loss_list), filename)
-            filename = 'penalty_loss_' + save_label + '.csv'
+            filename = save_prefix + 'penalty_loss_' + save_label + '.csv'
             export_vector(torch.tensor(self.penalty_loss_list), filename)
 
         # Exporting proximity clouds, if requested.
@@ -222,5 +238,5 @@ if __name__ == '__main__':
     parser = NetOptimizerOptions()
     options = parser.parse()
     lo = LacconianNetOptimizer(options.path, options.lr, options.momentum, options.device, options.loss_type, options.no_knn, options.transform_in_features, options.get_loss, options.layer_mode)
-    lo.optimize(options.n_iter, options.save, options.save_interval, options.display_interval, options.save_label, options.take_times, options.neighbor_list)
+    lo.optimize(options.n_iter, options.save, options.save_interval, options.display_interval, options.save_label, options.take_times, options.neighbor_list, options.save_prefix)
 
