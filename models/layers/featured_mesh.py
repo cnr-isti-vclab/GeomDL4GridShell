@@ -24,7 +24,7 @@ class FeaturedMesh(Mesh):
         feature_mask.append([3, 4, 5])
 
         # input_features[:, 6:8]: principal curvatures.
-        k1, k2  = extract_apss_principal_curvatures(self.file)
+        k1, k2 = extract_apss_principal_curvatures(self.file)
         k1 = torch.from_numpy(k1).to(self.device)
         k2 = torch.from_numpy(k2).to(self.device)
         feature_list.append(k1)
