@@ -2,8 +2,9 @@ import torch
 import warnings
 from models.layers.mesh import Mesh
 from torch.nn.functional import normalize
-from utils import extract_apss_principal_curvatures, extract_geodesic_distances, get_cotan_matrix
+from utils.utils import extract_apss_principal_curvatures, extract_geodesic_distances
 
+# Class that extends Mesh for admitting vertex input feature vectors
 class FeaturedMesh(Mesh):
 
     def __init__(self, file, vertices=None, faces=None, device='cpu'):
@@ -31,7 +32,6 @@ class FeaturedMesh(Mesh):
         feature_list.append(k2)
         feature_mask.append([6, 7])
 
-
         # input_features[:, 8]: geodesic distance (i.e min geodetic distance) from firm vertices;
         # input_features[:, 9]: geodesic centrality (i.e mean of geodetic distances) from firm vertices;
         # input_features[:, 10]: geodesic distance (i.e min geodetic distance) from mesh boundary;
@@ -46,11 +46,6 @@ class FeaturedMesh(Mesh):
         feature_list.append(geodesic_distance_bound)
         feature_list.append(geodesic_centrality_bound)
         feature_mask.append([8, 9, 10, 11])
-
-        # input_features[:, 12:16]: first 4 laplacian eigenvectors.
-        # eigenvectors = self.compute_laplacian_eigs(4)
-        # feature_list.append(eigenvectors)
-        # feature_mask.append([8, 9, 10, 11])
 
         self.input_features = torch.cat(feature_list, dim=1)
         self.feature_mask = feature_mask
@@ -68,22 +63,4 @@ class FeaturedMesh(Mesh):
 
         # Applying final l2-normalization.
         self.vertex_normals = normalize(vertex_normals, p=2, dim=1)
-
-    def compute_laplacian_eigs(self, n):
-        # Getting mesh cotan-laplacian matrix.
-        mass, cot = get_cotan_matrix(self)
-        mass = torch.from_numpy(mass).to(self.device).unsqueeze(1)
-        cot = torch.from_numpy(cot).to(self.device)
-        L = cot / (1 / mass)
-
-        # Computing cotan-laplacian eigenpairs.
-        eigenpairs = torch.linalg.eig(L)
-        warnings.simplefilter('ignore')
-        eigenvalues = eigenpairs.eigenvalues.to(torch.float32)
-        eigenvectors = eigenpairs.eigenvectors.to(torch.float32)
-        warnings.simplefilter('default')
-
-        # Taking the n first module-bigger eigenvectors.
-        sorted_idx = torch.sort(torch.abs(eigenvalues), descending=False).indices[ :n]
-        return eigenvectors[:, sorted_idx]
-
+        

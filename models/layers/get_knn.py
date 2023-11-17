@@ -1,5 +1,5 @@
 import torch
-from utils import save_mesh, save_cloud
+from utils.utils import save_mesh, save_cloud
 
 def get_knn(x, mesh, target_idx, k):
     topk = torch.topk(torch.norm(x[target_idx] - x, dim=1), k=k, largest=False).indices

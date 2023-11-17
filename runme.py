@@ -1,6 +1,7 @@
 import os, subprocess
 
-mesh_list = os.listdir('input')
+print("List of input structures:")
+mesh_list = os.listdir('meshes')
 print(mesh_list)
 
 # Making output directory.
@@ -10,14 +11,17 @@ if not os.path.exists('output'):
 else:    
     print("Directory output already exists.")
 
+print("**Starting Shape Optimization***")
+
+# Computing neural-based shape optimization for each .ply file in the meshes folder
 for mesh in mesh_list:
-    meshpath = 'input/' + mesh
+    meshpath = 'meshes/' + mesh
     command = 'python'
-    scriptfile = 'LacconianNetOptimizer.py'
+    scriptfile = 'optimization_task.py'
     device = '--device'
     devicename = 'cuda'
     meshpath = '--meshpath' 
-    meshpathname = 'input/' + mesh
+    meshpathname = 'meshes/' + mesh
     lr = '--lr'
     lrname = '0.0005'
     niter = '--niter'
@@ -28,7 +32,7 @@ for mesh in mesh_list:
     losstypename = 'mean_beam_energy' 
     save = '--save' 
     saveinterval = '--saveinterval'
-    saveintervalname = '20' 
+    saveintervalname = '100' 
     layermode = '--layermode' 
     layermodename = 'gat'
     transforminputfeatures = '--transforminputfeatures' 

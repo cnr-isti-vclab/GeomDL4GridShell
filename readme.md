@@ -1,0 +1,1 @@
+## Geometric deep learning for statics aware grid shells 

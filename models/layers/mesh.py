@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from utils import load_mesh, edge_connectivity
+from utils.utils import load_mesh, edge_connectivity
 from torch.nn.functional import normalize
 import copy
 
