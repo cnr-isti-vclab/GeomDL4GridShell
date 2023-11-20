@@ -20,3 +20,13 @@ to create an envirorment named ```GeomDL4GridShell``` that contains all the need
 conda activate GeomDL4GridShell
 ~~~
 and we are ready to run the code.
+
+# Code usage
+Into the environment ```GeomDL4GridShell```, the command
+~~~
+python optimization_task.py --meshpath 'meshes/<modelname>.ply' --device 'cuda' --savename <modelname>
+~~~
+perform shape optimization on a single input structure, encoded in the file ```<modelname>.ply```. Execution on the whole batch of examples ```models/``` is performed after
+~~~
+python batch_exec.py
+~~~
