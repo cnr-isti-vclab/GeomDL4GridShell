@@ -4,4 +4,4 @@
 <sup>a</sup>Institute of Information Science and Technologies "A. Faedo" (ISTI), National Research Council of Italy (CNR)  
 <sup>b</sup>University of Pisa (Italy)
 
-![image](./images/Markdown/teaser.png)
+![image](./images/teaser.png)
