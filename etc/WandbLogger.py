@@ -3,7 +3,7 @@ import os
 import itertools
 import pandas as pd
 import torch
-from LacconianOptimizer import LacconianOptimizer
+from optim.structural_optimizer import optimizer
 from options.logger_options import WandbLoggerOptions
 
 PARAMS = ['INDEX', 'MESH', 'LOSS', 'LR', 'MOMENTUM','LAPLACIAN_PERC', 'NORMCONS_PERC', 'VARAREA_PERC', 'BOUNDARY_REG']
