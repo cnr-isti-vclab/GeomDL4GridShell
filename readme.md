@@ -7,7 +7,7 @@
 ![image](./images/teaser.png)
 
 # Installation
-This code has been tested on Windows® 10 Pro and Ubuntu 22.04. The Windows® machine has an Intel i7-6700K CPU, 32 GB of RAM, a NVIDIA GeForce GTX 1080 GPU with 8 GB of dedicated memory. The Ubuntu machine has an AMD Epyc 7413 CPU, 128 GB of RAM, a NVIDIA GeForce RTX 3080 GPU with 12 GB of dedicated memory. The code runs on Python 3.11.5 with PyTorch 2.1.1, CUDA 11.8, and PyTorch Geometric 2.4.0.
+This code has been tested on Windows® 10 Pro and Ubuntu 22.04. The Windows® machine has an Intel i7-6700K CPU, 32 GB of RAM, a NVIDIA GeForce GTX 1080 GPU with 8 GB of dedicated memory. The Ubuntu machine has an AMD Epyc 7413 CPU, 128 GB of RAM, a NVIDIA GeForce RTX 3080 GPU with 10 GB of dedicated memory. The code runs on Python 3.11.5 with PyTorch 2.1.1, CUDA 11.8, and PyTorch Geometric 2.4.0.
 
 ### Installing dependencies on Anaconda
 We employed [Anaconda](https://www.anaconda.com/products/distribution), a popular Python distribution for data science and machine learning. After that Anaconda is installed, we can use an Anaconda shell to create virtual environments and run the code. From an Anaconda prompt, we move to the repository root directory and enter the command
@@ -25,9 +25,9 @@ Into the environment ```GeomDL4GridShell```, the command
 ~~~
 python optimization_task.py --meshpath 'meshes/<modelname>.ply' --device 'cuda' --savelabel <modelname>
 ~~~
-perform shape optimization on a single input structure, encoded in the file ```<modelname>.ply```. By omitting ```--device 'cuda'``` (or writing ```--device 'cpu'```) we make computations run on CPU instead of GPU.
+performs shape optimization on a single input structure, encoded in the file ```<modelname>.ply```. By omitting ```--device 'cuda'``` (or writing ```--device 'cpu'```) we make computations run on CPU instead of GPU.
 
-Execution on the whole batch of examples ```models/``` is performed after
+Execution on the whole batch of examples ```models/``` is performed using the command
 ~~~
 python batch_exec.py
 ~~~
