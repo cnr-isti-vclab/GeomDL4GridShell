@@ -87,7 +87,7 @@ def extract_geodesic_distances(path, nsmooth=8):
     ms.compute_selection_by_condition_per_vertex(condselect='((r == 255) && (g == 0) && (b == 0)) || ((r == 0) && (g == 0) && (b == 255))')
 
     # Getting geodesic distance of mesh vertices from firm ones.
-    ms.compute_scalar_by_geodesic_distance_from_selection_per_vertex(maxdistance=pymeshlab.Percentage(100.))
+    ms.compute_scalar_by_geodesic_distance_from_selection_per_vertex(maxdistance=pymeshlab.PercentageValue(100.))
     for _ in range(nsmooth):
         ms.apply_scalar_smoothing_per_vertex()
     from_firm_geodesic_distance = np.float32(mesh.vertex_scalar_array())
@@ -98,7 +98,7 @@ def extract_geodesic_distances(path, nsmooth=8):
     f = mesh.face_matrix()
     from_firm_geodesic_centrality = np.zeros(len(v))
     for vertex in v[mesh.vertex_selection_array()]:
-        ms.compute_scalar_by_geodesic_distance_from_given_point_per_vertex(startpoint=vertex, maxdistance=pymeshlab.Percentage(100.))
+        ms.compute_scalar_by_geodesic_distance_from_given_point_per_vertex(startpoint=vertex, maxdistance=pymeshlab.PercentageValue(100.))
         from_firm_geodesic_centrality += mesh.vertex_scalar_array()
     from_firm_geodesic_centrality /= len(v[mesh.vertex_selection_array()])
     mesh_new = pymeshlab.Mesh(vertex_matrix=v, face_matrix=f, v_scalar_array=from_firm_geodesic_centrality)
@@ -111,7 +111,7 @@ def extract_geodesic_distances(path, nsmooth=8):
     ms.compute_selection_from_mesh_border()
 
     # Getting geodesic distance of mesh vertices from boundary ones.
-    ms.compute_scalar_by_geodesic_distance_from_selection_per_vertex(maxdistance=pymeshlab.Percentage(100.))
+    ms.compute_scalar_by_geodesic_distance_from_selection_per_vertex(maxdistance=pymeshlab.PercentageValue(100.))
     for _ in range(nsmooth):
         ms.apply_scalar_smoothing_per_vertex()
     from_bound_geodesic_distance = np.float32(mesh.vertex_scalar_array())
@@ -122,7 +122,7 @@ def extract_geodesic_distances(path, nsmooth=8):
     f = mesh.face_matrix()
     from_bound_geodesic_centrality = np.zeros(len(v))
     for vertex in v[mesh.vertex_selection_array()]:
-        ms.compute_scalar_by_geodesic_distance_from_given_point_per_vertex(startpoint=vertex, maxdistance=pymeshlab.Percentage(100.))
+        ms.compute_scalar_by_geodesic_distance_from_given_point_per_vertex(startpoint=vertex, maxdistance=pymeshlab.PercentageValue(100.))
         from_bound_geodesic_centrality += mesh.vertex_scalar_array()
     from_bound_geodesic_centrality /= len(v[mesh.vertex_selection_array()])
     mesh_new = pymeshlab.Mesh(vertex_matrix=v, face_matrix=f, v_scalar_array=from_bound_geodesic_centrality)
@@ -154,7 +154,7 @@ def isotrophic_remesh(mesh, filename, target_length):
     # Getting target_lenght percentage.
     mesh.update_bounding_box()
     bb_diagonal = mesh.bounding_box().diagonal()
-    target_length_perc = pymeshlab.Percentage(target_length * 100 / bb_diagonal)
+    target_length_perc = pymeshlab.PercentageValue(target_length * 100 / bb_diagonal)
 
     # Applying isotrophic remeshing.
     ms.remeshing_isotropic_explicit_remeshing(iterations=20, adaptive=True, targetlen=target_length_perc)
