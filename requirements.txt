@@ -1,5 +1,5 @@
 # Pymeshlab
-pymeshlab==2023.12
+pymeshlab
 
 # Additional components for PyTorchGeometric
 torch_scatter 
